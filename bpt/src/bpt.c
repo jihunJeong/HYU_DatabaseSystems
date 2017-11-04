@@ -4,8 +4,8 @@
 #define	offset_FP 0
 #define offset_NP 16
 #define offset_RP 8
-#define num_IP 4
-#define num_LP 4
+#define num_IP 248
+#define num_LP 31
 
 bool verbose_output = false;
 FILE *of;
@@ -414,21 +414,16 @@ int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t
 	
 
 	split = cut(num_IP + 1);
-	if (num_IP % 2 != 0) {
-		split++;
-	}
 	new_offset = make_page();
 	fseek(of, old_offset + 120, SEEK_SET);
 	for (i = 0; i < split - 1; i++) {
 		fwrite(&temp_offsets[i], 8, 1, of);
 		fwrite(&temp_keys[i], 8, 1, of);
-		printf("%d\n", temp_keys[i]);
 		cnt++;
 	}
 	fwrite(&temp_offsets[i], 8, 1, of);
 	set_num_key(old_offset, cnt);
 	k_prime = temp_keys[split - 1];
-	printf("%d\n", k_prime);
 	cnt = 0;
 	fseek(of, new_offset + 8, SEEK_SET);
 	fwrite(&cnt, 4, 1, of);
@@ -575,8 +570,8 @@ int64_t find_leaf(int64_t key) {
 	
 	return leaf_offset;
 }
-/*
-int64_t remove_entry_from_node(int64_t key_offset, int64_t key, record
+
+/*int64_t remove_entry_from_node(int64_t key_offset, int64_t key, record
 		*key_record) {
 	int i = 0, leaf_;
 	int64_t num_offset, page_key. inner_key, null = NULL;
@@ -678,5 +673,4 @@ int64_t delete(int64_t key) {
 	}
 	
 	return 0;
-}
-*/
+}*/
