@@ -1,6 +1,7 @@
 #define Version "1.14"
 #include "bpt.h"
 
+#define	offset_FP 0
 #define offset_NP 16
 #define offset_RP 8
 #define num_IP 4
@@ -27,16 +28,6 @@ void increase_num_page() {
 	fwrite(&num_page, 4, 1, of);
 }
 
-void decrease_num_page() {
-	int num_page;
-
-	fseek(of, offset_NP, SEEK_SET);
-	fread(&num_page, 4, 1, of);
-	num_page--;
-	fseek(of, offset_NP, SEEK_SET);
-	fwrite(&num_page, 4, 1, of);
-}
-
 int get_num_key(int64_t offset) {
 	int num_keys;
 	fseek(of, offset + 12, SEEK_SET);
@@ -48,6 +39,28 @@ int get_num_key(int64_t offset) {
 void set_num_key(int64_t offset, int number) {
 	fseek(of, offset + 12, SEEK_SET);
 	fwrite(&number, 4, 1, of);
+}
+
+int chk_is_leaf(int64_t offset) {
+	int is_leaf;
+
+	fseek(of, offset + 8, SEEK_SET);
+	fread(&is_leaf, 4, 1, of);
+
+	return is_leaf;
+}
+
+int64_t find_last_free_page() {
+	int64_t current_offset;
+
+	fseek(of, offset_FP, SEEK_SET);
+	fread(&current_offset, 8, 1, of);
+	while(current_offset != 0) {
+		fseek(of, current_offset, SEEK_SET);
+		fread(&current_offset, 8, 1, of);
+	}
+
+	return current_offset;
 }
 
 void usage_2 (void) {
@@ -70,21 +83,22 @@ void usage_2 (void) {
 }
 
 void initialize_db() {
-	int offset_FP = 4096;
+	int FP = 4096;
 	int64_t cng = 0, rp = 0;
 
 	int cnt_p = 1;
 
 	for (int i = 0; i < 10; i++) {
-		fseek(of, offset_FP * i, SEEK_SET);
+		fseek(of, FP * i, SEEK_SET);
 		cng += 4096;
 		fwrite(&cng, 8, 1, of);
 		cnt_p += 1;
 		sync();
 	}
-	
-	fseek(of, offset_RP, SEEK_SET);
+	fseek(of, FP * 10, SEEK_SET);
 	fwrite(&rp, 8, 1, of);
+	
+	fseek(of, offset_RP + 16, SEEK_SET);
 	fwrite(&cnt_p, 8, 1, of);
 }
 
@@ -186,7 +200,7 @@ int64_t get_left_index(int64_t parent_offset, int64_t left_offset) {
 }
 
 int64_t insert_into_parent(int64_t parent_offset, int64_t left_offset, int64_t key, int64_t
-		right_offset) {
+			right_offset) {
 	int64_t left_index_offset;
 
 	if (parent_offset == 0)
@@ -375,7 +389,7 @@ int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t
 		perror("Temporary keys array for splitting nodes.");
 		exit(EXIT_FAILURE);
 	}
-	int64_t* temp_offsets = (int64_t*)malloc(sizeof(int64_t) * (num_IP + 1));
+	int64_t* temp_offsets = (int64_t*)malloc(sizeof(int64_t) * (num_IP + 2));
 	if (temp_offsets == NULL) {
 		perror("Temporary offsets array for splitting nodes.");
 		exit(EXIT_FAILURE);
@@ -398,18 +412,23 @@ int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t
 	temp_keys[left_index + 1] = key;
 	temp_offsets[left_index + 2] = right_offset;
 	
+
 	split = cut(num_IP + 1);
+	if (num_IP % 2 != 0) {
+		split++;
+	}
 	new_offset = make_page();
 	fseek(of, old_offset + 120, SEEK_SET);
 	for (i = 0; i < split - 1; i++) {
 		fwrite(&temp_offsets[i], 8, 1, of);
 		fwrite(&temp_keys[i], 8, 1, of);
+		printf("%d\n", temp_keys[i]);
 		cnt++;
 	}
 	fwrite(&temp_offsets[i], 8, 1, of);
 	set_num_key(old_offset, cnt);
 	k_prime = temp_keys[split - 1];
-	
+	printf("%d\n", k_prime);
 	cnt = 0;
 	fseek(of, new_offset + 8, SEEK_SET);
 	fwrite(&cnt, 4, 1, of);
@@ -499,8 +518,8 @@ int64_t find_leaf(int64_t key) {
 		return next_offset;
 	}
 
-	fseek(of, next_offset + 8, SEEK_SET);
-	fread(&leaf_, 4, 1, of);
+	leaf_ = chk_is_leaf(next_offset);
+
 	i = 0;
 	current_offset = next_offset + 128;
 	fseek(of, current_offset, SEEK_SET);
@@ -528,9 +547,7 @@ int64_t find_leaf(int64_t key) {
 			current_offset += 8;
 		}
 
-		fseek(of, new_offset + 8, SEEK_SET);
-		fread(&leaf_, 4, 1, of);
-
+		leaf_ = chk_is_leaf(new_offset);
 		if (leaf_ == 0) {
 			current_offset = new_offset + 128;
 			next_offset = new_offset;
@@ -558,12 +575,94 @@ int64_t find_leaf(int64_t key) {
 	
 	return leaf_offset;
 }
+/*
+int64_t remove_entry_from_node(int64_t key_offset, int64_t key, record
+		*key_record) {
+	int i = 0, leaf_;
+	int64_t num_offset, page_key. inner_key, null = NULL;
+	char value[120], nulle[120] = NULL;
+
+	leaf_ = chk_is_leaf(key_offset);
+	fseek(of, key_offset + 128, SEEK_SET);
+	fread(&page_key, 8, 1, of);
+	if (leaf_) {
+		while (page_key != key) {
+			i++;
+			fseek(of, 120, SEEK_CUR);
+			fread(&page_key, 8, 1, of);
+		}
+
+		for (++i; i < get_num_key(key_offset); i++) {
+			fseek(of, key_offset + (128 * (i + 1)) , SEEK_SET);
+			fread(&page_key, 8, 1, of);
+			fread(&value, 1, 120, of);
+			fseek(of, key_offset + (128 * i), SEEK_SET);
+			fwrite(&page_key, 8, 1, of);
+			fwrite(&value, 1, 120, of);
+		}
+		fwrite(&null, 8, 1, of);
+		fwrite(&nulle, 1, 120, of);
+		int num = get_num_key(key_offset) - 1
+		set_num_key(key_offset, num);
+
+	} else {
+		while (page_key != key) {
+			i++;
+			fseek(of, 8, SEEK_CUR);
+			fread(&page_key, 8, 1, of);
+		}
+
+		for (++i; i < get_num_key(key_offset) ; i++) {
+			fseek(of, key_offset + 128 + (16 * i) , SEEK_SET);
+			fread(&page_key, 8, 1, of);
+			fseek(of, key_offset + 128 +_(16 * (i - 1)), SEEK_SET);
+			fwrite(&page_key, 8, 1, of);
+		}
+	}
+
+	return key_offset;
+}
+
+int64_t adjust_root(int64_t root_offset) {
+	int64_t new_root_offset, i = 0, FP;
+
+	if (get_num_key(root_offset) > 0) {
+		return root_offset;
+	}
+
+	if (!chk_is_leaf(root_offset)) {
+		fseek(of, root_offset + 120, SEEK_SET);
+		fread(&new_root_offset, 8, 1, of);
+		fseek(of, new_root_offset, SEEK_SET);
+		fwrite(&i, 8, 1, of);
+		fseek(of, offset_RP, SEEK_SET);
+		fwrite(&new_root_offset, 8, 1, of);
+	} else {
+		new_root_offset = 0;
+		fseek(of, offset_RP, SEEK_SET);
+		fwrite(&new_root_offset, 8, 1, of);
+	}
+
+	fseek(of, find_last_free_page(), SEEK_SET);
+	fwrite(&root_offset, 8, 1, of)
+	fseek(of, root_offset, SEEK_SET);
+	fwrtie(&i, 8, 1, of);
+	return new_root_offset;
+}
 
 int64_t delete_entry(int64_t key_leaf_offset, int64_t key, record *key_record){
-	int64_t min_keys, neighbor_offset, key_prime;
+	int64_t min_keys, neighbor_offset, key_prime, chk;
 	int neighbor_index, key_prime_index, capacity;
 
-	//key_leaf_offset = remove_entry_from_node(key_leaf_offset, key, key_record);
+	key_leaf_offset = remove_entry_from_node(key_leaf_offset, key, key_record);
+
+	fseek(of, key_leaf_offset, SEEK_SET);
+	fread(&chk, 8, 1, of);
+
+	if (chk == 0)
+		return adjust_root(root);
+
+	min_keys = chk_is_leaf(key_leaf_offset) ? cut()
 }
 
 int64_t delete(int64_t key) {
@@ -580,3 +679,4 @@ int64_t delete(int64_t key) {
 	
 	return 0;
 }
+*/

@@ -24,9 +24,10 @@ extern int64_t cnt_p;
 
 int cut(int length);
 void increase_num_page();
-void decrease_num_page();
 int get_num_key(int64_t offset);
 void set_num_key(int64_t offset, int number);
+int chk_is_leaf(int64_t offset);
+int64_t find_last_free_page();
 
 void usage_2(void);
 void initialize_db();
@@ -53,7 +54,9 @@ int64_t insert(int64_t key, char *value);
 record *find(int64_t key);
 int64_t find_leaf(int64_t key);
 
-//int64_t remove_entry_from_node(
+int64_t adjust_root(int64_t root_offset);
+int64_t remove_entry_from_node(int64_t key_leaf_offset, int64_t key, record
+		*key_record);
 int64_t delete_entry(int64_t key_leaf_offset, int64_t key, record *key_record);
 int64_t delete(int64_t key);
 #endif 
