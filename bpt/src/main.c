@@ -36,13 +36,14 @@ int main (int argc, char **argv) {
 			}
 			break;	
 		
-		//case 'd':
-			//scanf("%d", &input_key);
-			//if (delete(input_key)) {
-			//	printf("Delete Key : %ld\n", you->key);
-			//} else
-			//	printf("Not Delete\n");
-			//	break;
+		case 'd':
+			scanf("%d", &input_key);
+			if (delete(input_key)) {
+				printf("Delete Key : %ld\n", input_key);
+			} else {
+				printf("Not Delete\n");
+			}
+			break;
 		}
 	}
 
