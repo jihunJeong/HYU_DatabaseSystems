@@ -4,8 +4,8 @@
 #define	offset_FP 0
 #define offset_NP 16
 #define offset_RP 8
-#define num_IP 248
-#define num_LP 31
+#define num_IP 4
+#define num_LP 4
 
 bool verbose_output = false;
 FILE *of;
