@@ -39,13 +39,13 @@ int main (int argc, char **argv) {
 		case 'd':
 			scanf("%d", &input_key);
 			if (delete(input_key)) {
-				printf("Delete Key : %ld\n", input_key);
+				printf("Deleted Key : %ld\n", input_key);
 			} else {
 				printf("Not Delete\n");
 			}
 			break;
 		}
 	}
-
+	printf("%d %d %d\n")
 	return 0;
 }

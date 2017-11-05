@@ -4,8 +4,8 @@
 #define	offset_FP 0
 #define offset_NP 16
 #define offset_RP 8
-#define num_IP 3
-#define num_LP 3
+#define num_IP 248
+#define num_LP 31
 
 bool verbose_output = false;
 FILE *of;
@@ -665,7 +665,12 @@ int64_t coalesce_pages(int64_t root, int64_t p, int64_t neighbor, int neighbor_i
 		fwrite(&temp_offset, 8, 1, of);
 	}
 
+	i = 0;
 	temp_offset = get_parent_offset(p);
+	/*fseek(of, find_last_free_page(), SEEK_SET);
+	fwrite(&p, 8, 1, of);
+	fseek(of, p, SEEK_SET);
+	fwrite(&i, 8, 1, of);*/
 	root = delete_entry(root, temp_offset, key_prime, p);
 	fseek(of, find_last_free_page(), SEEK_SET);
 	fwrite(&p, 8, 1, of);
@@ -849,12 +854,11 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 		fseek(of, key_offset + 120, SEEK_SET);
 		fread(&temp_offset, 8, 1, of);
 		while (temp_offset != key_record) {
-			printf("k");
 			i++;
 			fseek(of, key_offset + 120 + (16 * i), SEEK_SET);
 			fread(&temp_offset, 8, 1, of);
 		}
-		printf("%d\n", i);
+
 		for(++i; i < get_num_key(key_offset) + 1; i++) {
 			fseek(of, key_offset + 120 + (16 * k), SEEK_SET);
 			fread(&temp_offset, 8, 1, of);
