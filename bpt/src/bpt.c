@@ -720,7 +720,6 @@ int64_t redistribute_pages(int64_t root, int64_t p, int64_t neighbor, int neighb
 			fread(&temp_key, 8, 1, of);
 			fseek(of, get_parent_offset(p) + 128 + (16 * key_prime_index), SEEK_SET);
 			fwrite(&temp_key, 8, 1, of);
-
 		} else {
 			fseek(of, neighbor + 128 + (128 * (get_num_key(neighbor) - 1)), SEEK_SET);
 			fread(&temp_key, 8, 1, of);
@@ -728,8 +727,8 @@ int64_t redistribute_pages(int64_t root, int64_t p, int64_t neighbor, int neighb
 			fseek(of, p + 128, SEEK_SET);
 			fwrite(&temp_key, 8, 1, of);
 			fwrite(&value, 1, 120, of);
-			fseek(of, get_parent_offset(temp_offset) + 128 + (128 * key_prime_index), SEEK_SET);
-			fwrite(&temp_key, 8, 1, of);	
+			fseek(of, get_parent_offset(p) + 128 + (16 * key_prime_index), SEEK_SET);
+			fwrite(&temp_key, 8, 1, of);
 		}
 	} else {
 		if (chk_is_leaf(p)) {
