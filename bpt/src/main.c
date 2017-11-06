@@ -23,6 +23,7 @@ int main (int argc, char **argv) {
 			scanf("%d %s", &input_key, value);
 			key = input_key;
 			insert(key, value);
+			fsync(fileno(of));
 			break;
 
 		case 'f':
