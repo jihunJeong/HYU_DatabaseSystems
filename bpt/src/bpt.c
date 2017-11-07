@@ -696,7 +696,7 @@ int64_t redistribute_pages(int64_t root, int64_t p, int64_t neighbor, int neighb
 	int i;
 	int64_t tmp, temp_offset, temp_key, temp_parent;
 	char value[120];
-
+	printf("%d %d %d %d\n", root, p, neighbor, neighbor_index);
 	if (neighbor_index != -1) {
 		if (!chk_is_leaf(p)) {
 			fseek(of, p + 120 + (16 * get_num_key(p)), SEEK_SET);
@@ -841,7 +841,7 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 	fseek(of, key_offset + 128, SEEK_SET);
 	fread(&page_key, 8, 1, of);
 
-	while (page_key != key) {
+	while (page_key != key) {s
 		i++;
 		if (chk_is_leaf(key_offset)) {
 			fseek(of, key_offset + (128 * (i + 1)), SEEK_SET);
@@ -901,7 +901,7 @@ int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64
 		return adjust_root(root_offset);
 
 	min_keys = chk_is_leaf(key_offset) ? cut(num_LP) : cut(num_IP + 1) - 1;
-
+	printf("%d\n", chk_is_leaf(key_offset));
 	if (get_num_key(key_offset) >= min_keys) {
 		return root_offset;
 	}
@@ -919,6 +919,7 @@ int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64
 
 	capacity = chk_is_leaf(key_offset) ? num_LP + 1 : num_IP;
 
+	printf("%d\n", get_num_key(neighbor_offset) + get_num_key(key_offset));
 	if (get_num_key(neighbor_offset) + get_num_key(key_offset) < capacity) {
 		return coalesce_pages(root_offset, key_offset, neighbor_offset, neighbor_index, key_prime);
 	} else
