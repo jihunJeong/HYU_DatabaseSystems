@@ -32,7 +32,6 @@ int64_t get_parent_offset (int64_t offset) {
 	int64_t tmp;
 	fseek(of, offset, SEEK_SET);
 	fread(&tmp, 8, 1, of);
-
 	return tmp;
 }
 
@@ -45,7 +44,6 @@ int get_num_key(int64_t offset) {
 	int num_keys;
 	fseek(of, offset + 12, SEEK_SET);
 	fread(&num_keys, 4, 1, of);
-
 	return num_keys;
 }
 
@@ -59,7 +57,6 @@ int chk_is_leaf(int64_t offset) {
 
 	fseek(of, offset + 8, SEEK_SET);
 	fread(&is_leaf, 4, 1, of);
-
 	return is_leaf;
 }
 
@@ -72,7 +69,6 @@ int64_t find_last_free_page() {
 		fseek(of, current_offset, SEEK_SET);
 		fread(&current_offset, 8, 1, of);
 	}
-
 	return current_offset;
 }
 
@@ -126,7 +122,6 @@ int open_db (char *pathname) {
 			initialize_db();
 		}
 	}
-	
 	return 0;
 }
 
@@ -159,7 +154,6 @@ record *make_record(int64_t key, char *value) {
 		strcpy(new_record->value, value);
 		new_record->key = key;
 	}
-
 	return new_record;
 }
 
@@ -171,8 +165,6 @@ int64_t make_page() {
 
 	int64_t new_offset = 4096 * num_page;
 	increase_num_page();
-	
-	
 	return new_offset;
 }
 
@@ -201,8 +193,7 @@ int64_t get_left_index(int64_t parent_offset, int64_t left_offset) {
 		current_offset += 16;
 		if (current_key == leaf_key) {
 			break;
-		} else if (current_key > leaf_key) {
-			
+		} else if (current_key > leaf_key) {			
 			return -1;
 		}
 		i++;
@@ -211,7 +202,6 @@ int64_t get_left_index(int64_t parent_offset, int64_t left_offset) {
 		
 	current_offset = ((current_offset) % 4096 - 128) / 16 - 1;
 
-	
 	return current_offset;
 }
 
@@ -219,9 +209,7 @@ int64_t insert_into_parent(int64_t parent_offset, int64_t left_offset, int64_t k
 			right_offset) {
 	int64_t left_index_offset;
 
-	if (parent_offset == 0)
-
-		
+	if (parent_offset == 0)		
 		return insert_into_new_root(left_offset, key, right_offset);
 
 	left_index_offset = get_left_index(parent_offset, left_offset);
@@ -478,7 +466,6 @@ int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t
 		fwrite(&new_offset, 8, 1, of);
 	}
 
-	
 	return insert_into_parent(parent_offset, old_offset, k_prime, new_offset); 
 }
 
@@ -503,7 +490,6 @@ int64_t insert(int64_t key, char *value) {
 	key_find = find(key);
 	if (key_find != NULL) {
 		printf("Duplicated key\n");
-		
 		return 0;
 	}
 
@@ -533,12 +519,10 @@ record *find(int64_t key) {
 	record *pointer = (record*)malloc(sizeof(record));
 	
 	if (chk_find == 0 || chk_key != key) {
-		
 		return NULL;
 	} else {
 		pointer->key = key;
 		fread(&(pointer->value), 1, 120, of);
-		
 		return pointer;
 	}
 }
@@ -552,7 +536,6 @@ int64_t find_leaf(int64_t key) {
 	new_offset = next_offset;
 	if (next_offset == 0) {
 		printf("Empty File.\n");
-		
 		return next_offset;
 	}
 
@@ -599,7 +582,6 @@ int64_t find_leaf(int64_t key) {
 	int64_t leaf_key, leaf_offset;
 
 	leaf_offset = next_offset + 128;
-	
 	for (i = 0; i < cnt_leaf; i++) {
 		fseek(of, leaf_offset, SEEK_SET);
 		fread(&leaf_key, 8, 1, of);
@@ -612,7 +594,6 @@ int64_t find_leaf(int64_t key) {
 		}	
 	}
 	
-	
 	return leaf_offset;
 }
 
@@ -623,8 +604,7 @@ int get_neighbor_index(int64_t offset) {
 	for (i = 0; i <= get_num_key(parent_offset); i++) {
 		fseek(of, parent_offset + 120 + (16 * i), SEEK_SET);
 		fread(&current_offset, 8, 1, of);
-		if (current_offset == offset) {
-			
+		if (current_offset == offset) {			
 			return i - 1;
 		}
 	}
@@ -822,7 +802,6 @@ int64_t redistribute_pages(int64_t root, int64_t p, int64_t neighbor, int neighb
 	num = get_num_key(neighbor) - 1;
 	set_num_key(neighbor, num);
 
-	
 	return root;
 }
 
@@ -830,7 +809,6 @@ int64_t adjust_root(int64_t root_offset) {
 	int64_t new_root_offset, i = 0, FP;
 
 	if (get_num_key(root_offset) > 0) {
-		
 		return root_offset;
 	}
 
@@ -858,13 +836,19 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 	int i = 0, leaf_, k = 0;
 	int64_t num_offset, page_key, inner_key, temp_offset;
 	char value[120];
-
+	
 	leaf_ = chk_is_leaf(key_offset);
 	fseek(of, key_offset + 128, SEEK_SET);
 	fread(&page_key, 8, 1, of);
+
 	while (page_key != key) {
 		i++;
-		fseek(of, 120, SEEK_CUR);
+		if (chk_is_leaf(key_offset)) {
+			fseek(of, key_offset + (128 * (i + 1)), SEEK_SET);
+		} else {
+			fseek(of, key_offset + 128 + (16 * i), SEEK_SET);
+		}
+
 		fread(&page_key, 8, 1, of);
 	}
 	
@@ -894,7 +878,7 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 			fseek(of, key_offset + 120 + (16 * i), SEEK_SET);
 			fread(&temp_offset, 8, 1, of);
 		}
-
+	
 		for(++i; i < get_num_key(key_offset) + 1; i++) {
 			fseek(of, key_offset + 120 + (16 * k), SEEK_SET);
 			fread(&temp_offset, 8, 1, of);
@@ -905,7 +889,6 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 
 	int num = get_num_key(key_offset) - 1;
 	set_num_key(key_offset, num);
-
 	
 	return key_offset;
 }
@@ -913,16 +896,13 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64_t key_record){
 	int64_t min_keys, neighbor_offset, key_prime, chk, parent_offset, temp_offset1, temp_offset2;
 	int neighbor_index, key_prime_index, capacity;
-
 	key_offset = remove_entry_from_node(key_offset, key, key_record);
-
 	if (key_offset == root_offset)
 		return adjust_root(root_offset);
 
 	min_keys = chk_is_leaf(key_offset) ? cut(num_LP) : cut(num_IP + 1) - 1;
 
 	if (get_num_key(key_offset) >= min_keys) {
-		
 		return root_offset;
 	}
 
@@ -939,9 +919,9 @@ int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64
 
 	capacity = chk_is_leaf(key_offset) ? num_LP + 1 : num_IP;
 
-	if (get_num_key(neighbor_offset) + get_num_key(key_offset) < capacity)
+	if (get_num_key(neighbor_offset) + get_num_key(key_offset) < capacity) {
 		return coalesce_pages(root_offset, key_offset, neighbor_offset, neighbor_index, key_prime);
-	else
+	} else
 		return redistribute_pages(root_offset, key_offset, neighbor_offset, neighbor_index, key_prime_index, key_prime);
 }
 
