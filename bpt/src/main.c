@@ -2,50 +2,46 @@
 
 // MAIN
 
-int main (int argc, char **argv) {
+int main () {
 	
 	char *input_file, value[120];
 	FILE *fp;
-	int64_t key;
-	int range2, input_key;
+	int64_t key, input_key;
+	int range2;
 	char instruction;
 	char license_part;
 
-	input_file = argv[1];
 
-	open_db(input_file);
-	usage_2();
-	
-	printf("> ");
+	open_db("test.db");
 	while (scanf("%c", &instruction) != EOF) {
 		switch (instruction) {
 		case 'i':
-			scanf("%d %s", &input_key, value);
-			key = input_key;
-			insert(key, value);
+			scanf("%ld %s", &input_key, value);
+			insert(input_key, value);
 			fsync(fileno(of));
 			break;
 
 		case 'f':
-			scanf("%d", &input_key);
-			record *you = find(input_key);
-			if (you != NULL) {
-				printf("Find key : %ld\t", you->key);
-				printf("Find value : %s\n", you->value);
-			} else { 
-				printf("Not Found\n");
-			}
+			//for (input_key = -50; input_key < 32777; input_key++) {
+				scanf("%ld", &input_key);
+				record *you = find(input_key);
+				if (you != NULL) {
+					printf("Key: %ld, Value: %s\n", you->key, you->value);
+				} else { 
+					printf("Not Exists %ld\n", input_key);
+				}
+			//}
+			fflush(stdout);
 			break;	
 		
 		case 'd':
-			scanf("%d", &input_key);
-			if (delete(input_key)) {
-				printf("Deleted Key : %ld\n", input_key);
-			} else {
-				printf("Not Delete\n");
-			}
+			scanf("%ld", &input_key);
+			delete(input_key);
 			break;
-		}
+		case 'q':
+			while (getchar() != (int)'\n');
+			return EXIT_SUCCESS;
+		} 
 	}
 	return 0;
 }

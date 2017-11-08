@@ -140,7 +140,6 @@ int start_new_db(int64_t key, record *pointer) {
 	fwrite(&none, 8, 1, of);
 	fwrite(&(pointer->key), 8, 1, of);
 	fwrite(&(pointer->value), 1, 120, of);
-	fsync(fileno(of));
 	return 0;
 }
 
@@ -180,48 +179,37 @@ int64_t make_leaf() {
 }
 
 int64_t get_left_index(int64_t parent_offset, int64_t left_offset) {
-	int64_t current_offset, current_key, leaf_key;
-	int cnt_key = get_num_key(parent_offset), i = 0;
+	int64_t left_index = 0, tmp;
+	
+	while (left_index <= get_num_key(parent_offset)) {
+		fseek(of, parent_offset + 120 + (16 * left_index), SEEK_SET);
+		fread(&tmp, 8, 1, of);
 
-	fseek(of, left_offset + 128, SEEK_SET);
-	fread(&leaf_key, 8, 1, of);
-
-	current_offset = parent_offset + 128;
-	fseek(of, current_offset, SEEK_SET);
-	while (i < cnt_key) {
-		fread(&current_key, 8, 1, of);
-		current_offset += 16;
-		if (current_key == leaf_key) {
+		if (tmp != left_offset) {
+			left_index++;
+		} else {
 			break;
-		} else if (current_key > leaf_key) {			
-			return -1;
 		}
-		i++;
-		fseek(of, current_offset, SEEK_SET);
 	}
-		
-	current_offset = ((current_offset) % 4096 - 128) / 16 - 1;
 
-	return current_offset;
+	return left_index;
 }
 
 int64_t insert_into_parent(int64_t parent_offset, int64_t left_offset, int64_t key, int64_t
 			right_offset) {
-	int64_t left_index_offset;
+	int64_t left_index;
 
 	if (parent_offset == 0)		
 		return insert_into_new_root(left_offset, key, right_offset);
 
-	left_index_offset = get_left_index(parent_offset, left_offset);
-	int num_parent_key = get_num_key(parent_offset);
-	if (num_parent_key < num_IP) {
-
-		 int64_t insert_into_node1 = insert_into_node(parent_offset, left_index_offset, key, right_offset);
+	left_index = get_left_index(parent_offset, left_offset);
+	if (get_num_key(parent_offset) < num_IP) {
+		 int64_t insert_into_node1 = insert_into_node(parent_offset, left_index, key, right_offset);
 		 fsync(fileno(of));
 		 return insert_into_node1;
 	}
 
-	int64_t insert_into_node_after_splitting1 = insert_into_node_after_splitting(parent_offset, left_index_offset, key, right_offset);
+	int64_t insert_into_node_after_splitting1 = insert_into_node_after_splitting(parent_offset, left_index, key, right_offset);
 	fsync(fileno(of));
 	return insert_into_node_after_splitting1;
 }
@@ -251,12 +239,12 @@ int64_t insert_into_new_root(int64_t left_offset, int64_t key, int64_t
 }
 
 int64_t insert_into_leaf(int64_t leaf_offset, int64_t key, record *pointer) {
-	int i, cnt_leaf_key = get_num_key(leaf_offset), insertion_point = 0;
+	int i, insertion_point = 0;
 	int current_offset = leaf_offset;
 	int64_t leaf_key;
 	char value[120];
 
-	while (insertion_point < cnt_leaf_key) {
+	while (insertion_point < get_num_key(leaf_offset)) {
 		current_offset += 128;
 		fseek(of, current_offset, SEEK_SET);
 		fread(&leaf_key, 8, 1, of);
@@ -267,7 +255,8 @@ int64_t insert_into_leaf(int64_t leaf_offset, int64_t key, record *pointer) {
 		
 		insertion_point++;
 	} 
-	for(i = cnt_leaf_key; i > insertion_point; i--) {
+
+	for(i = get_num_key(leaf_offset); i > insertion_point; i--) {
 		current_offset = leaf_offset + (128 * i);
 		fseek(of, current_offset, SEEK_SET);
 		fread(&leaf_key, 8, 1, of);
@@ -278,14 +267,10 @@ int64_t insert_into_leaf(int64_t leaf_offset, int64_t key, record *pointer) {
 	
 	current_offset = leaf_offset + (128 * (insertion_point + 1));
 	fseek(of, current_offset , SEEK_SET);
-	fwrite(&(pointer->key), 8, 1, of);
+	fwrite(&key, 8, 1, of);
 	fwrite(&(pointer->value), 1, 120, of);
-	fseek(of, current_offset, SEEK_SET);
-	fread(&leaf_key, 8, 1, of);
-	fread(&value, 1, 120, of);
-	cnt_leaf_key++;
-	set_num_key(leaf_offset, cnt_leaf_key);
-	
+	i = get_num_key(leaf_offset) + 1;
+	set_num_key(leaf_offset, i);
 	return 0;
 }
 
@@ -317,22 +302,19 @@ int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, recor
 		
 		insertion_index++;
 	} 
-	int num_keys = get_num_key(leaf_offset);
-	int64_t temp_key;
-	char temp_value[120];
-	
+
 	fseek(of, leaf_offset + 128, SEEK_SET);
-	for (i = 0, j = 0; i < num_keys; i++, j++) {
+	for (i = 0, j = 0; i < get_num_key(leaf_offset); i++, j++) {
 		if ( j == insertion_index) j++;
-		fread(&temp_key, 8, 1, of);
-		temp_record[j]->key = temp_key;
+		fseek(of, leaf_offset + 128 + (128 * i), SEEK_SET);
+		fread(&(temp_record[j]->key), 8, 1, of);
 		fread(&(temp_record[j]->value), 1, 120, of);
 	}
 	
 	temp_record[insertion_index]->key = key;
 	strcpy(temp_record[insertion_index]->value, pointer->value);
 	
-	num_keys = 0;
+	int num_keys = 0;
 	split = cut(num_LP);
 	
 	fseek(of, leaf_offset + 128, SEEK_SET);
@@ -356,8 +338,7 @@ int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, recor
 	free(temp_record);
 
 	int64_t next_offset, parent_offset, new_key;
-	fseek(of, leaf_offset, SEEK_SET);
-	fread(&parent_offset, 8, 1, of);
+	parent_offset = get_parent_offset(leaf_offset);
 	fseek(of, leaf_offset + 120, SEEK_SET);
 	fread(&next_offset, 8, 1, of);
 	fseek(of, new_leaf_offset, SEEK_SET);
@@ -373,18 +354,19 @@ int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, recor
 
 int64_t insert_into_node(int64_t parent, int64_t left_index, int64_t key,
 		int64_t right) {
-	int i, num_parent_key = get_num_key(parent);
-	int64_t current_offset, internal_key, internal_offset;
-	for(i = num_parent_key - 1; i > left_index; i--) {
-		current_offset = parent + 128 + (16 * i);
-		fseek(of, current_offset, SEEK_SET);
-		fread(&internal_key, 8, 1, of);
-		fread(&internal_offset, 8, 1, of);
-		fwrite(&internal_key, 8, 1, of);\
-		fwrite(&internal_offset, 8, 1, of);
+	int i;
+	int64_t temp_offset, temp_key;
+
+	for(i = get_num_key(parent); i > left_index; i--) {
+		fseek(of, parent + 128 + (16 * (i - 1)), SEEK_SET);
+		fread(&temp_key, 8, 1, of);
+		fread(&temp_offset, 8, 1, of);
+		fseek(of, parent + 128 + (16 * i), SEEK_SET);
+		fwrite(&temp_key, 8, 1, of);
+		fwrite(&temp_offset, 8, 1, of);
 	}
 	
-	fseek(of, parent + 128 + (16 * (left_index + 1)), SEEK_SET);
+	fseek(of, parent + 128 + (16 * left_index), SEEK_SET);
 	fwrite(&key, 8, 1, of);
 	fwrite(&right, 8, 1, of);
 	i = get_num_key(parent) + 1;
@@ -396,8 +378,10 @@ int64_t insert_into_node(int64_t parent, int64_t left_index, int64_t key,
 int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t
 		left_index, int64_t key,
 		int64_t right_offset) {
-	int i, j, split, k_prime, num_old = get_num_key(old_offset), cnt = 0;	
+
+	int i, j, split, k_prime, cnt = 0;	
 	int64_t new_offset;
+
 	int64_t* temp_keys = (int64_t*)malloc(sizeof(int64_t) * (num_IP + 1));
 	if (temp_keys == NULL) {
 		perror("Temporary keys array for splitting nodes.");
@@ -409,32 +393,33 @@ int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t
 		exit(EXIT_FAILURE);
 	}
 	
-	fseek(of, old_offset + 120, SEEK_SET);
-	for (i = 0, j = 0; i < num_old + 1; i++, j++) {
-		if (j == left_index + 2) j++;
+	for (i = 0, j = 0; i < get_num_key(old_offset) + 1; i++, j++) {
+		if (j == left_index + 1) j++;
+		fseek(of, old_offset + 120 + (16 * i), SEEK_SET);
 		fread(&temp_offsets[j], 8, 1, of);
-		fseek(of, 8, SEEK_CUR);
 	}
 
 	fseek(of, old_offset + 128, SEEK_SET);
-	for (i = 0, j = 0; i < num_old; i++, j++) {
-		if (j == left_index + 1) j++;
+	for (i = 0, j = 0; i < get_num_key(old_offset); i++, j++) {
+		if (j == left_index) j++;
+		fseek(of, old_offset + 128 + (16 * i), SEEK_SET);
 		fread(&temp_keys[j], 8, 1, of);
-		fseek(of, 8, SEEK_CUR);
 	}
 
-	temp_keys[left_index + 1] = key;
-	temp_offsets[left_index + 2] = right_offset;
+	temp_keys[left_index] = key;
+	temp_offsets[left_index + 1] = right_offset;
 	
 
 	split = cut(num_IP + 1);
 	new_offset = make_page();
+	set_num_key(old_offset, 0);
 	fseek(of, old_offset + 120, SEEK_SET);
 	for (i = 0; i < split - 1; i++) {
 		fwrite(&temp_offsets[i], 8, 1, of);
 		fwrite(&temp_keys[i], 8, 1, of);
 		cnt++;
 	}
+
 	fwrite(&temp_offsets[i], 8, 1, of);
 	set_num_key(old_offset, cnt);
 	k_prime = temp_keys[split - 1];
@@ -476,10 +461,14 @@ int64_t insert(int64_t key, char *value) {
 	int64_t root_offset, leaf_offset, key_offset;
 	fsync(fileno(of));
 
+	key_find = find(key);
+	if (key_find != NULL) {
+		return 0;
+	}
+
 	pointer = make_record(key, value);
 	fseek(of, offset_RP, SEEK_SET);
 	fread(&root_offset, 8, 1, of);
-
 	if (root_offset == 0) {
 		int64_t start_new_db1 = start_new_db(key, pointer);
 		fflush(of);
@@ -487,16 +476,8 @@ int64_t insert(int64_t key, char *value) {
 		return start_new_db1;
 	}
 
-	key_find = find(key);
-	if (key_find != NULL) {
-		printf("Duplicated key\n");
-		return 0;
-	}
-
-	key_offset = find_leaf(key) - 128;
-	leaf_offset =  key_offset - (key_offset % 4096);
-	int cnt_leaf_key = get_num_key(leaf_offset);
-	if (cnt_leaf_key < num_LP) {
+	leaf_offset = find_leaf(key);
+	if (get_num_key(leaf_offset) < num_LP) {
 		int insert_into_leaf1 = insert_into_leaf(leaf_offset, key, pointer);
 		fflush(of);
 		fsync(fileno(of));
@@ -511,90 +492,68 @@ int64_t insert(int64_t key, char *value) {
 
 record *find(int64_t key) {
 	int i = 0;
-	int64_t chk_key;
-	int64_t chk_find = find_leaf(key);
-	fseek(of, chk_find - 128, SEEK_SET);
-	fread(&chk_key, 8, 1, of);
-
+	int64_t offset = find_leaf(key), offset_key;
+	char value[120];
 	record *pointer = (record*)malloc(sizeof(record));
 	
-	if (chk_find == 0 || chk_key != key) {
+	if (offset == 0 ) {
 		return NULL;
-	} else {
-		pointer->key = key;
-		fread(&(pointer->value), 1, 120, of);
+	} 
+
+	fseek(of, offset + 128, SEEK_SET);
+	fread(&offset_key, 8, 1, of);
+	for (i = 0; i < get_num_key(offset); i++) {
+		if (offset_key == key) {
+			fseek(of, offset + 136 + (i * 128), SEEK_SET);
+			fread(&value, 1, 120, of);
+			break;
+		}
+		fseek(of, offset + 128 + (128 * (i + 1)), SEEK_SET);
+		fread(&offset_key, 8 , 1, of);
+	}
+
+	if (i == get_num_key(offset))
+		return NULL;
+	else {
+		pointer->key = offset_key;
+		strcpy(pointer->value, value);
 		return pointer;
 	}
 }
 
 int64_t find_leaf(int64_t key) {
 	int i = 0, leaf_, in_offset, set, k;
-	int64_t next_offset, internal_key, num_p, chk, new_offset, current_offset;
+	int64_t offset, internal_key, num_p, chk, new_offset, current_offset;
 	
 	fseek(of, offset_RP, SEEK_SET);
-	fread(&next_offset, 8, 1, of);
-	new_offset = next_offset;
-	if (next_offset == 0) {
-		printf("Empty File.\n");
-		return next_offset;
+	fread(&offset, 8, 1, of);
+	new_offset = offset;
+	if (offset == 0) {
+		return offset;
 	}
 
-	leaf_ = chk_is_leaf(next_offset);
 
-	i = 0;
-	current_offset = next_offset + 128;
-	fseek(of, current_offset, SEEK_SET);
-	while (leaf_ == 0) {
-		current_offset +=8;
-		fread(&internal_key, 8, 1, of);
-		while (i < get_num_key(next_offset)) {
-			i++;
-			if (internal_key <= key) {
-				if (i == get_num_key(next_offset)) {
-					fseek(of, current_offset, SEEK_SET);
-					fread(&new_offset, 8, 1, of);
-					break;
-				}
-
-				current_offset +=8;
+	fseek(of, offset + 128, SEEK_SET);
+	fread(&internal_key, 8, 1, of);
+	while (!chk_is_leaf(offset)) {
+		i = 0;
+		while (i < get_num_key(offset)) {
+			if (key >= internal_key) {
+				i++;
+				fseek(of, offset + 128 + (16 * i), SEEK_SET);
+				fread(&internal_key, 8, 1, of);
 			} else {
-				current_offset -= 16;
-				fseek(of, current_offset, SEEK_SET);
-				fread(&new_offset, 8, 1, of);
 				break;
 			}
-			fseek(of, current_offset, SEEK_SET);
-			fread(&internal_key, 8, 1, of);
-			current_offset += 8;
 		}
 
-		leaf_ = chk_is_leaf(new_offset);
-		if (leaf_ == 0) {
-			current_offset = new_offset + 128;
-			next_offset = new_offset;
-			fseek(of, current_offset, SEEK_SET);
-			i = 0;
-		}
+		fseek(of, offset + 120 + (16 * i), SEEK_SET);
+		fread(&offset, 8, 1, of);
+		fseek(of, offset + 128, SEEK_SET);
+		fread(&internal_key, 8, 1, of);
 	}
 
-	next_offset = new_offset;
-	int cnt_leaf = get_num_key(next_offset);
-	int64_t leaf_key, leaf_offset;
-
-	leaf_offset = next_offset + 128;
-	for (i = 0; i < cnt_leaf; i++) {
-		fseek(of, leaf_offset, SEEK_SET);
-		fread(&leaf_key, 8, 1, of);
-		
-		if (key < leaf_key) {
-			
-			return leaf_offset;
-		} else {
-			leaf_offset += 128;
-		}	
-	}
-	
-	return leaf_offset;
+	return offset;
 }
 
 int get_neighbor_index(int64_t offset) {
@@ -632,6 +591,7 @@ int64_t coalesce_pages(int64_t root, int64_t p, int64_t neighbor, int neighbor_i
 		fwrite(&key_prime, 8, 1, of);
 		int num = get_num_key(neighbor) + 1;
 		set_num_key(neighbor, num);
+
 		p_end = get_num_key(p);
 		p_num = get_num_key(p);
 		n_num = get_num_key(neighbor);
@@ -836,12 +796,13 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 	int i = 0, leaf_, k = 0;
 	int64_t num_offset, page_key, inner_key, temp_offset;
 	char value[120];
-	
+	int64_t key_temp;
+
 	leaf_ = chk_is_leaf(key_offset);
 	fseek(of, key_offset + 128, SEEK_SET);
 	fread(&page_key, 8, 1, of);
 
-	while (page_key != key) {s
+	while (page_key != key) {
 		i++;
 		if (chk_is_leaf(key_offset)) {
 			fseek(of, key_offset + (128 * (i + 1)), SEEK_SET);
@@ -896,7 +857,9 @@ int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_reco
 int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64_t key_record){
 	int64_t min_keys, neighbor_offset, key_prime, chk, parent_offset, temp_offset1, temp_offset2;
 	int neighbor_index, key_prime_index, capacity;
+	
 	key_offset = remove_entry_from_node(key_offset, key, key_record);
+
 	if (key_offset == root_offset)
 		return adjust_root(root_offset);
 
@@ -925,15 +888,22 @@ int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64
 }
 
 int64_t delete(int64_t key) {
-	int64_t key_offset = find_leaf(key) - 128, root_offset;
+	int64_t key_leaf = find_leaf(key), root_offset, key_offset, tmp;
 	record *key_record = find(key);
+	int i;
+	for (i = 0; i < get_num_key(key_leaf); i++) {
+		fseek(of, key_leaf + (128 * (i + 1)), SEEK_SET);
+		fread(&tmp, 8, 1, of);
 
-	int64_t key_leaf_offset =  key_offset - (key_offset % 4096);
-	
+		if (key_record->key == tmp)
+			break;
+	}
+
+	key_offset = key_leaf + 128 * (i + 1);
 	fseek(of, offset_RP, SEEK_SET);
 	fread(&root_offset, 8, 1, of);
-	if (key_record != NULL && key_leaf_offset != 0) {
-		delete_entry(root_offset, key_leaf_offset, key, key_offset);
+	if (key_record != NULL && key_offset != 0) {
+		delete_entry(root_offset, key_leaf, key, key_offset);
 		free(key_record);
 		fsync(fileno(of));
 		return 1;

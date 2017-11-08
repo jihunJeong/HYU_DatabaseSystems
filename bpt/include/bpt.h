@@ -63,4 +63,32 @@ int64_t redistribute_pages(int64_t root_offset, int64_t key_offset, int64_t neig
 int64_t remove_entry_from_node(int64_t key_offset, int64_t key, int64_t key_record);
 int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64_t key_record);
 int64_t delete(int64_t key);
+
+/*
+void print_tree (void) {
+	int64_t n = 0;
+	int i = 0;
+	int rank = 0;
+	int new_rank = 0;
+	int64_t root;
+
+	fseek(of, 8, SEEK_SET);
+	fread(&root, 8, 1, of);
+
+	if (root == 0) {
+		printf("Empty tree.\n");
+		return;
+	}
+
+	q = NULL;
+	enqueue(root);
+	while ( q != NULL) {
+		n = dequeue();
+
+		if (get_parent_offset(n) != 0 && n == )
+	} 
+}
+*/
+
+
 #endif 
