@@ -130,10 +130,7 @@ def test_delete(remain_rec, delete_rec):
         if (result == NOT_FOUND_RESULT):
             succ += 1   
 
-    p.stdin.write(QUIT_CMD_FMTS.encode('utf-8'))
     f.close()
-
-    return succ, end - start
 
 def test_delete_random(casename, pick):
     print(casename + " Test")

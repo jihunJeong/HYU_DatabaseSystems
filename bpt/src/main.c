@@ -16,9 +16,16 @@ int main () {
 	while (scanf("%c", &instruction) != EOF) {
 		switch (instruction) {
 		case 'i':
+			//for (int i = 0; i < 1000000; i++) {
+
+				//input_key = i;
+				//strcpy(value, "a");
+				
 			scanf("%ld %s", &input_key, value);
 			insert(input_key, value);
-			fsync(fileno(of));
+			//printf("%d\n", i);
+			//fsync(fileno(of));
+			//}
 			break;
 
 		case 'f':
@@ -28,15 +35,21 @@ int main () {
 				if (you != NULL) {
 					printf("Key: %ld, Value: %s\n", you->key, you->value);
 				} else { 
-					printf("Not Exists %ld\n", input_key);
+					printf("Not Exists\n");
 				}
 			//}
 			fflush(stdout);
 			break;	
 		
 		case 'd':
+			//for (int i = 0; i < 1000000; i++){
+				//input_key = i;
 			scanf("%ld", &input_key);
 			delete(input_key);
+					//printf("Succes %d\n", input_key);
+				//} else
+					//printf("not delete %d\n", input_key);
+			//}
 			break;
 		case 'q':
 			while (getchar() != (int)'\n');
