@@ -471,22 +471,22 @@ int64_t insert(int64_t key, char *value) {
 	fread(&root_offset, 8, 1, of);
 	if (root_offset == 0) {
 		int64_t start_new_db1 = start_new_db(key, pointer);
-		//fflush(of);
-		//fsync(fileno(of));
+		fflush(of);
+		fsync(fileno(of));
 		return start_new_db1;
 	}
 
 	leaf_offset = find_leaf(key);
 	if (get_num_key(leaf_offset) < num_LP) {
 		int insert_into_leaf1 = insert_into_leaf(leaf_offset, key, pointer);
-		//fflush(of);
-		//fsync(fileno(of));
+		fflush(of);
+		fsync(fileno(of));
 		return insert_into_leaf1;
 	}
 	
 	int insert_into_leaf_after_splitting1 = insert_into_leaf_after_splitting(leaf_offset, key, pointer);
-	//fflush(of);
-	//fsync(fileno(of));
+	fflush(of);
+	fsync(fileno(of));
 	return insert_into_leaf_after_splitting1;
 }
 
@@ -929,8 +929,8 @@ int64_t delete(int64_t key) {
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(root_offset, key_leaf, key, key_offset);
 		free(key_record);
-		//fflush(of);
-		//fsync(fileno(of));
+		fflush(of);
+		fsync(fileno(of));
 		return 1;
 	}
 
