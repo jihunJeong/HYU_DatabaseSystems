@@ -130,7 +130,10 @@ def test_delete(remain_rec, delete_rec):
         if (result == NOT_FOUND_RESULT):
             succ += 1   
 
+    p.stdin.write(QUIT_CMD_FMTS.encode('utf-8'))
     f.close()
+
+    return succ, end - start
 
 def test_delete_random(casename, pick):
     print(casename + " Test")
@@ -170,7 +173,8 @@ def test_delete_chunk():
     exp = floor(log(LARGE_CASE, 2) / 2)
     start = 2 ** exp
     end = 2 ** (exp+1)
-    
+    start = int(start)
+    end = int(end)
     deleted = arr[start: end]
     arr = arr[:start] + arr[end:]
 
