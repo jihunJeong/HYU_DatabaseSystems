@@ -4,7 +4,7 @@
 
 int main () {
 	
-	char *input_file, value[120];
+	char *input_file, *value;
 	FILE *fp;
 	int64_t key, input_key;
 	int range2;
@@ -32,9 +32,9 @@ int main () {
 		case 'f':
 			//for (input_key = 0; input_key < 200000; input_key++) {
 				scanf("%ld", &input_key);
-				record *you = find(input_key);
-				if (you != NULL) {
-					printf("Key: %ld, Value: %s\n", you->key, you->value);
+				value = find(input_key);
+				if (value != NULL) {
+					printf("Key: %ld, Value: %s\n", input_key, value);
 				} else { 
 					printf("Not Exists\n");
 				}

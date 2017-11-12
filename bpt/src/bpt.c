@@ -457,7 +457,7 @@ int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t
 int64_t insert(int64_t key, char *value) {
 	
 	record *pointer = (record*)malloc(sizeof(record));
-	record *key_find = (record*)malloc(sizeof(record));
+	char *key_find = (char*)malloc(sizeof(char) * 120);
 	int64_t root_offset, leaf_offset, key_offset;
 	//fsync(fileno(of));
 
@@ -471,26 +471,26 @@ int64_t insert(int64_t key, char *value) {
 	fread(&root_offset, 8, 1, of);
 	if (root_offset == 0) {
 		int64_t start_new_db1 = start_new_db(key, pointer);
-		fflush(of);
-		fsync(fileno(of));
+		//fflush(of);
+		//fsync(fileno(of));
 		return start_new_db1;
 	}
 
 	leaf_offset = find_leaf(key);
 	if (get_num_key(leaf_offset) < num_LP) {
 		int insert_into_leaf1 = insert_into_leaf(leaf_offset, key, pointer);
-		fflush(of);
-		fsync(fileno(of));
+		//fflush(of);
+		//fsync(fileno(of));
 		return insert_into_leaf1;
 	}
 	
 	int insert_into_leaf_after_splitting1 = insert_into_leaf_after_splitting(leaf_offset, key, pointer);
-	fflush(of);
-	fsync(fileno(of));
+	//fflush(of);
+	//fsync(fileno(of));
 	return insert_into_leaf_after_splitting1;
 }
 
-record *find(int64_t key) {
+char *find(int64_t key) {
 	int i = 0;
 	int64_t offset = find_leaf(key), offset_key;
 	char value[120];
@@ -517,7 +517,7 @@ record *find(int64_t key) {
 	else {
 		pointer->key = offset_key;
 		strcpy(pointer->value, value);
-		return pointer;
+		return pointer->value;
 	}
 }
 
@@ -913,13 +913,13 @@ int64_t delete_entry(int64_t root_offset, int64_t key_offset, int64_t key, int64
 
 int64_t delete(int64_t key) {
 	int64_t key_leaf = find_leaf(key), root_offset, key_offset, tmp;
-	record *key_record = find(key);
+	char *key_record = find(key);
 	int i;
 	for (i = 0; i < get_num_key(key_leaf); i++) {
 		fseek(of, key_leaf + (128 * (i + 1)), SEEK_SET);
 		fread(&tmp, 8, 1, of);
 
-		if (key_record->key == tmp)
+		if (key == tmp)
 			break;
 	}
 
@@ -929,8 +929,8 @@ int64_t delete(int64_t key) {
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(root_offset, key_leaf, key, key_offset);
 		free(key_record);
-		fflush(of);
-		fsync(fileno(of));
+		//fflush(of);
+		//fsync(fileno(of));
 		return 1;
 	}
 

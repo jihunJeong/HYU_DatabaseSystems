@@ -53,7 +53,7 @@ int64_t insert_into_node_after_splitting(int64_t old_offset, int64_t left_index,
 		int64_t key, int64_t right);
 int64_t insert(int64_t key, char *value);
 
-record *find(int64_t key);
+char *find(int64_t key);
 int64_t find_leaf(int64_t key);
 
 int get_neighbor_index(int64_t offset);
