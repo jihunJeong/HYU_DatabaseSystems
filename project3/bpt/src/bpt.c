@@ -21,29 +21,28 @@ int cut(int length) {
 		return length/2 + 1;
 }
 
-page *init_page() {
-	page *o_page;
-	o_page = (page*)malloc(sizeof(page));
-	o_page->is_leaf = 0;
-	o_page->parent = 0;
+page init_page() {
+	page o_page;
+	o_page.is_leaf = 0;
+	o_page.parent = 0;
 	return o_page;
 }
 
-// for copy page by value
+// for copy page by reference
 void copy_page(page *n, page *p) {
 	int i;
 	*n = *p;
 
 	for (i = 0; i < 31; i++) {
-		strcpy(n->value[i], p->value[i]);
+		strcpy((*n).value[i], (*p).value[i]);
 	}
 
 	for (i = 0; i < 248; i++) {
-		n->key[i] = p->key[i];
-		n->offset[i] = p->offset[i];
+		(*n).key[i] = (*p).key[i];
+		(*n).offset[i] = (*p).offset[i];
 	}
 
-	n->offset[i] = p->offset[i];
+	(*n).offset[i] = (*p).offset[i];
 }
 
 void decrease_pin(int table_id) {
@@ -66,14 +65,14 @@ int64_t find_last_free_page() {
 	return current_offset;
 }
 
-page *clock_request_page(int table_id, page *new_page, int64_t offset) {
+page clock_request_page(int table_id, page new_page, int64_t offset) {
 	page *retval_page = NULL;
 	while (retval_page == NULL) {
 		buffer *current = buffer_pool[clk_hand];
 		if (current->refbit == 0 && current->pin_count == 0) {
 			if (current->is_dirty == 1)
 				write_page_db(table_id, current);
-			retval_page = new_page;
+			retval_page = &new_page;
 			current->page = new_page;
 			current->is_dirty = 0;
 			current->pin_count = 1;
@@ -87,7 +86,7 @@ page *clock_request_page(int table_id, page *new_page, int64_t offset) {
 		clk_hand = (clk_hand + 1) % MAX_FRAME;
 	}
 
-	return retval_page;
+	return new_page;
 }
 
 void usage_2 (void) {
@@ -116,7 +115,6 @@ int init_db(int num_buf) {
 
 	for(int i = 0; i < num_buf; i++) {
 		buffer_pool[i] = (buffer*)malloc(sizeof(buffer));
-		buffer_pool[i]->page = (page*)malloc(sizeof(page));
 		buffer_pool[i]->refbit = 0;
 		buffer_pool[i]->pin_count = 0;
 		buffer_pool[i]->is_dirty = 0;
@@ -135,7 +133,7 @@ void initialize_db(int table_id) {
 	int cnt_p = 1;
 	of = array_f[table_id];
 
-	page *apage = read_page_buf(table_id, 0);
+	page apage = read_page_buf(table_id, 0);
 	for (int i = 0; i < 10; i++) {
 		fseek(of, FP * i, SEEK_SET);
 		cng += 4096;
@@ -143,11 +141,11 @@ void initialize_db(int table_id) {
 		cnt_p += 1;
 		
 	}
-	apage->root = 0;
-	apage->num_page = cnt_p;
+	apage.root = 0;
+	apage.num_page = cnt_p;
 	write_page_buf(table_id, apage, 0);
-	page *bpage = read_page_buf(table_id, 45056);
-	bpage->parent = 0;
+	page bpage = read_page_buf(table_id, 45056);
+	bpage.parent = 0;
 	write_page_buf(table_id, bpage, 45056);
 }
 
@@ -180,7 +178,7 @@ int close_table(int table_id) {
 			write_page_db(table_id, buffer_pool[i]);
 		}
 	}
-	of = array_f[i];
+	of = array_f[table_id];
 	fclose(of);
 	array_f[i] = NULL;
 }
@@ -197,21 +195,20 @@ int shutdown_db() {
 int start_new_db(int table_id, int64_t key, record *pointer) {
 	int64_t root_offset = 4096 * 11;
 
-	page *page = read_page_buf(table_id, 0);
-	page->root = root_offset;
-	page->num_page++;
+	page page = read_page_buf(table_id, 0);
+	page.root = root_offset;
+	page.num_page++;
 	write_page_buf(table_id, page, 0);
 
 
 	page = read_page_buf(table_id, root_offset);
-	page->parent = 0;
-	page->right_page = 0;
-	page->is_leaf = 1;
-	page->num_key = 1;
-	page->key[0] = pointer->key;
-	strcpy(page->value[0], pointer->value);
+	page.parent = 0;
+	page.right_page = 0;
+	page.is_leaf = 1;
+	page.num_key = 1;
+	page.key[0] = pointer->key;
+	strcpy(page.value[0], pointer->value);
 	write_page_buf(table_id, page, root_offset);
-
 	return 0;
 }
 
@@ -231,15 +228,15 @@ record *make_record(int64_t key, char *value) {
 int64_t make_page(int table_id) {
 	int num_page;
 
-	page *page = read_page_buf(table_id, 0);
-	int64_t new_offset = 4096 * page->num_page;
+	page page = read_page_buf(table_id, 0);
+	int64_t new_offset = 4096 * page.num_page;
 
-	page->num_page++;
+	page.num_page++;
 	write_page_buf(table_id, page, 0);
 
 
 	page = read_page_buf(table_id, new_offset);
-	page->is_leaf = 0;
+	page.is_leaf = 0;
 	write_page_buf(table_id, page, new_offset);
 
 
@@ -250,8 +247,8 @@ int64_t make_leaf(int table_id) {
 	int64_t offset_new_p = make_page(table_id);
 	int i = 1, k = 0;
 
-	page *page = read_page_buf(table_id, offset_new_p);
-	page->is_leaf = 1;
+	page page = read_page_buf(table_id, offset_new_p);
+	page.is_leaf = 1;
 	write_page_buf(table_id, page, offset_new_p);
 
 	
@@ -266,45 +263,44 @@ void write_page_db(int table_id, buffer *buf) {
 
 	fseek(of, buf->page_offset, SEEK_SET);
 	if (buf->page_offset != 0) {
-		fwrite(&(buf->page->parent), 8, 1, of);
-		fwrite(&(buf->page->is_leaf), 4, 1, of);
-		fwrite(&(buf->page->num_key), 4, 1, of);
+		fwrite(&(buf->page.parent), 8, 1, of);
+		fwrite(&(buf->page.is_leaf), 4, 1, of);
+		fwrite(&(buf->page.num_key), 4, 1, of);
 		fwrite(&reserved, 1, 104, of);
-		if (buf->page->is_leaf) {
-			fwrite(&(buf->page->right_page), 8, 1, of);
-			for (i = 0; i < buf->page->num_key; i++) {
-				fwrite(&(buf->page->key[i]), 8, 1, of);
-				fwrite(&(buf->page->value[i]), 1, 120, of);
+		if (buf->page.is_leaf) {
+			fwrite(&(buf->page.right_page), 8, 1, of);
+			for (i = 0; i < buf->page.num_key; i++) {
+				fwrite(&(buf->page.key[i]), 8, 1, of);
+				fwrite(&(buf->page.value[i]), 1, 120, of);
 			}
 		} else {
-			for (i = 0; i < buf->page->num_key; i++) {
-				fwrite(&(buf->page->offset[i]), 8, 1, of);
-				fwrite(&(buf->page->key[i]), 8, 1, of);
+			for (i = 0; i < buf->page.num_key; i++) {
+				fwrite(&(buf->page.offset[i]), 8, 1, of);
+				fwrite(&(buf->page.key[i]), 8, 1, of);
 			}
-			fwrite(&(buf->page->offset[i]), 8, 1, of);
+			fwrite(&(buf->page.offset[i]), 8, 1, of);
 		}
 	} else {
-		fwrite(&(buf->page->free), 8, 1, of);
-		fwrite(&(buf->page->root), 8, 1, of);
-		fwrite(&(buf->page->num_page), 8, 1, of);
+		fwrite(&(buf->page.free), 8, 1, of);
+		fwrite(&(buf->page.root), 8, 1, of);
+		fwrite(&(buf->page.num_page), 8, 1, of);
 		fwrite(&head_reserved, 1, 4072, of);
 	}
-
-	//free(buf->page);
 }
 
-void write_page_buf(int table_id, page *p_page, int64_t offset) {
+void write_page_buf(int table_id, page p_page, int64_t offset) {
 	for (int i = 0; i < MAX_FRAME; i++) {
 		if (offset == buffer_pool[i]->page_offset && table_id == buffer_pool[i]->table_id) {
-			buffer_pool[i]->page = p_page;
+			copy_page(&(buffer_pool[i]->page), &p_page);
 			buffer_pool[i]->is_dirty = 1;
 			buffer_pool[i]->pin_count = 0;
+			break;
 		}
 	}
 }
 
-page *read_page_db(int table_id, int64_t offset) {
-	page *page = init_page();
+page read_page_db(int table_id, int64_t offset) {
+	page page;
 	int i;
 	int64_t chk = -1;
 	char head_reserved[4072];
@@ -316,36 +312,37 @@ page *read_page_db(int table_id, int64_t offset) {
 	fseek(of, offset, SEEK_SET);
 
 	if (offset != 0) {
-		fread(&(page->parent), 8, 1, of);
-		fread(&(page->is_leaf), 4, 1, of);
-		fread(&(page->num_key), 4, 1, of);
+		fread(&(page.parent), 8, 1, of);
+		fread(&(page.is_leaf), 4, 1, of);
+		fread(&(page.num_key), 4, 1, of);
 		fseek(of, offset + 120, SEEK_SET);
-		if (page->is_leaf) {
-			fread(&(page->right_page), 8, 1, of);
-			for (i = 0; i < page->num_key; i++) {
-				fread(&(page->key[i]), 8, 1, of);
-				fread(&(page->value[i]), 1, 120, of);
+		if (page.is_leaf) {
+			fread(&(page.right_page), 8, 1, of);
+			for (i = 0; i < page.num_key; i++) {
+				fread(&(page.key[i]), 8, 1, of);
+				fread(&(page.value[i]), 1, 120, of);
 			}
 		} else {
-			for (i = 0; i < page->num_key; i++) {
-				fread(&(page->offset[i]), 8, 1, of);
-				fread(&(page->key[i]), 8, 1, of);
+			for (i = 0; i < page.num_key; i++) {
+				fread(&(page.offset[i]), 8, 1, of);
+				fread(&(page.key[i]), 8, 1, of);
 			}
-			fread(&(page->offset[i]), 8, 1, of);
+			fread(&(page.offset[i]), 8, 1, of);
 		}
 	} else {
-		fread(&(page->free), 8, 1, of);
-		fread(&(page->root), 8, 1, of);
-		fread(&(page->num_page), 8, 1, of);
+		fread(&(page.free), 8, 1, of);
+		fread(&(page.root), 8, 1, of);
+		fread(&(page.num_page), 8, 1, of);
 		fread(&head_reserved, 1, 4072, of);
 	}
 
 	return page;
 }
 
-page *read_page_buf(int table_id, int64_t offset) {
-	page *page = NULL;
-	for (int i = 0; i < MAX_FRAME; i++) {
+page read_page_buf(int table_id, int64_t offset) {
+	int i;
+	page page;
+	for (i = 0; i < MAX_FRAME; i++) {
 		if (offset == buffer_pool[i]->page_offset && table_id == buffer_pool[i]->table_id) {
 			buffer_pool[i]->refbit = 1;
 			buffer_pool[i]->pin_count = 1;
@@ -354,7 +351,7 @@ page *read_page_buf(int table_id, int64_t offset) {
 		}
 	}
 
-	if (page == NULL) {
+	if (i == MAX_FRAME) {
 		page = read_page_db(table_id, offset);
 		page = clock_request_page(table_id, page, offset);
 	}
@@ -365,12 +362,11 @@ page *read_page_buf(int table_id, int64_t offset) {
 int64_t get_left_index(int table_id, int64_t parent_offset, int64_t left_offset) {
 	int64_t left_index = 0, tmp;
 
-	page *page = read_page_buf(table_id, parent_offset);
-	while (left_index <= page->num_key && 
-            page->offset[left_index] != left_offset)
+	page page = read_page_buf(table_id, parent_offset);
+	while (left_index <= page.num_key && 
+            page.offset[left_index] != left_offset)
         left_index++;
 
-    //free(page);
 	return left_index;
 }
 
@@ -382,8 +378,8 @@ int64_t insert_into_parent(int table_id, int64_t parent_offset, int64_t left_off
 		return insert_into_new_root(table_id, left_offset, key, right_offset);
 
 	left_index = get_left_index(table_id, parent_offset, left_offset);
-	page *parent_page = read_page_buf(table_id, parent_offset);
-	if (parent_page->num_key < num_IP) {
+	page parent_page = read_page_buf(table_id, parent_offset);
+	if (parent_page.num_key < num_IP) {
 		 int64_t insert_into_node1 = insert_into_node(table_id, parent_offset, left_index, key, right_offset);
 		 return insert_into_node1;
 	}
@@ -397,24 +393,24 @@ int64_t insert_into_new_root(int table_id, int64_t left_offset, int64_t key, int
 	int64_t new_internal_offset = make_page(table_id);
 	int64_t i = 0;
 	int j = 0;
-	page *old_page = read_page_buf(table_id, 0);
-	old_page->root = new_internal_offset;
-	page *new_page = read_page_buf(table_id, new_internal_offset);
-	new_page->parent = 0;
-	new_page->is_leaf = 0;
-	new_page->num_key = 1;
-	new_page->offset[0] = left_offset;
-	new_page->key[0] = key;
-	new_page->offset[1] = right_offset;
+	page old_page = read_page_buf(table_id, 0);
+	old_page.root = new_internal_offset;
+	page new_page = read_page_buf(table_id, new_internal_offset);
+	new_page.parent = 0;
+	new_page.is_leaf = 0;
+	new_page.num_key = 1;
+	new_page.offset[0] = left_offset;
+	new_page.key[0] = key;
+	new_page.offset[1] = right_offset;
 	write_page_buf(table_id, old_page, 0);
 	write_page_buf(table_id, new_page, new_internal_offset);
 
 
-	page *leaf_page = read_page_buf(table_id, left_offset);
-	leaf_page->parent = new_internal_offset;
+	page leaf_page = read_page_buf(table_id, left_offset);
+	leaf_page.parent = new_internal_offset;
 	write_page_buf(table_id, leaf_page, left_offset);
-	page *right_page = read_page_buf(table_id, right_offset);
-	right_page->parent = new_internal_offset;
+	page right_page = read_page_buf(table_id, right_offset);
+	right_page.parent = new_internal_offset;
 	write_page_buf(table_id, right_page, right_offset);
 
 
@@ -426,19 +422,19 @@ int64_t insert_into_leaf(int table_id, int64_t offset, int64_t key, record *poin
 	int i, insertion_point = 0;
 	char value[120];
 
-	page *page = read_page_buf(table_id, offset);
-	while (insertion_point < page->num_key && page->key[insertion_point] < key) {
+	page page = read_page_buf(table_id, offset);
+	while (insertion_point < page.num_key && page.key[insertion_point] < key) {
 		insertion_point++;
 	}
 
-	for(i = page->num_key; i > insertion_point; i--) {
-		page->key[i] = page->key[i - 1];
-		strcpy(page->value[i], page->value[i - 1]);
+	for(i = page.num_key; i > insertion_point; i--) {
+		page.key[i] = page.key[i - 1];
+		strcpy(page.value[i], page.value[i - 1]);
 	}
 
-	page->key[insertion_point] = key;
-	strcpy(page->value[insertion_point], pointer->value);
-	page->num_key++;
+	page.key[insertion_point] = key;
+	strcpy(page.value[insertion_point], pointer->value);
+	page.num_key++;
 	write_page_buf(table_id, page, offset);
 	return offset;
 }
@@ -457,37 +453,37 @@ int64_t insert_into_leaf_after_splitting(int table_id, int64_t leaf_offset, int6
 	}
 
 	insertion_index = 0;
-	page *old_page = read_page_buf(table_id, leaf_offset);
-	while (insertion_index < num_LP && old_page->key[insertion_index] < key)
+	page old_page = read_page_buf(table_id, leaf_offset);
+	while (insertion_index < num_LP && old_page.key[insertion_index] < key)
         insertion_index++;
 
-	for (i = 0, j = 0; i < old_page->num_key; i++, j++) {
+	for (i = 0, j = 0; i < old_page.num_key; i++, j++) {
 		if ( j == insertion_index) j++;
-		temp_record[j]->key = old_page->key[i];
-		strcpy(temp_record[j]->value, old_page->value[i]);
+		temp_record[j]->key = old_page.key[i];
+		strcpy(temp_record[j]->value, old_page.value[i]);
 	}
 
 	temp_record[insertion_index]->key = key;
 	strcpy(temp_record[insertion_index]->value, pointer->value);
 
-	old_page->num_key = 0;
+	old_page.num_key = 0;
 	split = cut(num_LP);
 
 	for (i = 0; i < split; i++) {
-		old_page->key[i] = temp_record[i]->key;
-		strcpy(old_page->value[i], temp_record[i]->value);
-		old_page->num_key++;
+		old_page.key[i] = temp_record[i]->key;
+		strcpy(old_page.value[i], temp_record[i]->value);
+		old_page.num_key++;
 	}
 
-	old_page->right_page = new_leaf_offset;
+	old_page.right_page = new_leaf_offset;
 	write_page_buf(table_id, old_page, leaf_offset);
 
-	page *new_page = read_page_buf(table_id, new_leaf_offset);
-	new_page->num_key = 0;
+	page new_page = read_page_buf(table_id, new_leaf_offset);
+	new_page.num_key = 0;
 	for (i = split, j = 0; i <= num_LP; i++, j++) {
-		new_page->key[j] = temp_record[i]->key;
-        strcpy(new_page->value[j], temp_record[i]->value);
-        new_page->num_key++;
+		new_page.key[j] = temp_record[i]->key;
+        strcpy(new_page.value[j], temp_record[i]->value);
+        new_page.num_key++;
 	}
 
 	for (i = 0; i < num_LP + 1; i++) {
@@ -496,10 +492,10 @@ int64_t insert_into_leaf_after_splitting(int table_id, int64_t leaf_offset, int6
 
 	free(temp_record);
 
-	int64_t new_key, parent_offset = old_page->parent;
-	new_page->parent = old_page->parent;
-	new_page->right_page = old_page->right_page;
-	new_key = new_page->key[0];
+	int64_t new_key, parent_offset = old_page.parent;
+	new_page.parent = old_page.parent;
+	new_page.right_page = old_page.right_page;
+	new_key = new_page.key[0];
 	write_page_buf(table_id, new_page, new_leaf_offset);
 
 	return insert_into_parent(table_id, parent_offset, leaf_offset, new_key, new_leaf_offset);
@@ -509,18 +505,17 @@ int64_t insert_into_node(int table_id, int64_t parent, int64_t left_index, int64
 		int64_t right) {
 	int i;
 
-	page *parent_page = read_page_buf(table_id, parent);
-	for(i = parent_page->num_key; i > left_index; i--) {
-		parent_page->key[i] = parent_page->key[i - 1];
-		parent_page->offset[i + 1] = parent_page->offset[i];
+	page parent_page = read_page_buf(table_id, parent);
+	for(i = parent_page.num_key; i > left_index; i--) {
+		parent_page.key[i] = parent_page.key[i - 1];
+		parent_page.offset[i + 1] = parent_page.offset[i];
 	}
 
-	parent_page->key[left_index] = key;
-	parent_page->offset[left_index + 1] = right;
-	parent_page->num_key++;
+	parent_page.key[left_index] = key;
+	parent_page.offset[left_index + 1] = right;
+	parent_page.num_key++;
 	write_page_buf(table_id, parent_page, parent);
 	
-	//free(parent_page);
 	return 0;
 }
 
@@ -529,28 +524,28 @@ int64_t insert_into_node_after_splitting(int table_id, int64_t old_offset, int64
 
 	int i, j, split, k_prime, cnt = 0;	
 	int64_t new_offset;
+
 	int64_t* temp_keys = (int64_t*)malloc(sizeof(int64_t) * (num_IP + 1));
-	// free (O)
 	if (temp_keys == NULL) {
 		perror("Temporary keys array for splitting nodes.");
 		exit(EXIT_FAILURE);
 	}
+
 	int64_t* temp_offsets = (int64_t*)malloc(sizeof(int64_t) * (num_IP + 2));
-	// free (O)
 	if (temp_offsets == NULL) {
 		perror("Temporary offsets array for splitting nodes.");
 		exit(EXIT_FAILURE);
 	}
 
-	page *old_page = read_page_buf(table_id, old_offset);
-	for (i = 0, j = 0; i < old_page->num_key + 1; i++, j++) {
+	page old_page = read_page_buf(table_id, old_offset);
+	for (i = 0, j = 0; i < old_page.num_key + 1; i++, j++) {
 		if (j == left_index + 1) j++;
-		temp_offsets[j] = old_page->offset[i];
+		temp_offsets[j] = old_page.offset[i];
 	}
 
-	for (i = 0, j = 0; i < old_page->num_key; i++, j++) {
+	for (i = 0, j = 0; i < old_page.num_key; i++, j++) {
 		if (j == left_index) j++;
-		temp_keys[j] = old_page->key[i];
+		temp_keys[j] = old_page.key[i];
 	}
 
 	temp_keys[left_index] = key;
@@ -558,55 +553,50 @@ int64_t insert_into_node_after_splitting(int table_id, int64_t old_offset, int64
 
 	split = cut(num_IP + 1);
 
-	old_page->num_key = 0;
+	old_page.num_key = 0;
 	for (i = 0; i < split - 1; i++) {
-		old_page->offset[i] = temp_offsets[i];
-		old_page->key[i] = temp_keys[i];
-		old_page->num_key++;
+		old_page.offset[i] = temp_offsets[i];
+		old_page.key[i] = temp_keys[i];
+		old_page.num_key++;
 	}
 
-	old_page->offset[i] = temp_offsets[i];
+	old_page.offset[i] = temp_offsets[i];
 	k_prime = temp_keys[split - 1];
 
 	new_offset = make_page(table_id);
-	page *new_page = read_page_buf(table_id, new_offset);
-	new_page->is_leaf = 0;
-	new_page->num_key = 0;
+	page new_page = read_page_buf(table_id, new_offset);
+	new_page.is_leaf = 0;
+	new_page.num_key = 0;
 
 	for (++i, j = 0; i <= num_IP; i++, j++) {
-		new_page->offset[j] = temp_offsets[i];
-		new_page->key[j] = temp_keys[i];
-		new_page->num_key++;
+		new_page.offset[j] = temp_offsets[i];
+		new_page.key[j] = temp_keys[i];
+		new_page.num_key++;
 	}
 
-	new_page->offset[j] = temp_offsets[i];
-	new_page->parent = old_page->parent;
+	new_page.offset[j] = temp_offsets[i];
+	new_page.parent = old_page.parent;
 	write_page_buf(table_id, old_page, old_offset);
 	write_page_buf(table_id, new_page, new_offset);
 
 	free(temp_keys);
 	free(temp_offsets);
 
-	int64_t child_offset, parent_offset = old_page->parent;
-	page *child_page;
-	for (i = 0; i <= new_page->num_key; i++) {
-		child_offset = new_page->offset[i];
+	int64_t child_offset, parent_offset = old_page.parent;
+	page child_page;
+	for (i = 0; i <= new_page.num_key; i++) {
+		child_offset = new_page.offset[i];
 		child_page = read_page_buf(table_id, child_offset);
-		child_page->parent = new_offset;
+		child_page.parent = new_offset;
 		write_page_buf(table_id, child_page, child_offset);
 	}
 
-	//free(child_page);
-	//free(old_page);
-	//free(new_page);
 	return insert_into_parent(table_id, parent_offset, old_offset, k_prime, new_offset); 
 }
 
 int64_t insert(int table_id, int64_t key, char *value) {
 
-	//record *pointer = (record*)malloc(sizeof(record));
-	record *pointer;
-	//char *key_find = (char*)malloc(sizeof(char) * 120);
+	record *pointer = (record*)malloc(sizeof(record));
 	char *key_find;
 	int64_t leaf_offset;
 
@@ -618,9 +608,9 @@ int64_t insert(int table_id, int64_t key, char *value) {
 	free(key_find);
 
 	pointer = make_record(key, value);
-	page *page = read_page_buf(table_id, 0);
+	page page = read_page_buf(table_id, 0);
 
-	if (page->root == 0) {
+	if (page.root == 0) {
 		int64_t start_new_db1 = start_new_db(table_id, key, pointer);
 		decrease_pin(table_id);
 		free(pointer);
@@ -629,7 +619,7 @@ int64_t insert(int table_id, int64_t key, char *value) {
 
 	leaf_offset = find_leaf(table_id, key);
 	page = read_page_buf(table_id, leaf_offset);
-	if (page->num_key < num_LP) {
+	if (page.num_key < num_LP) {
 		int insert_into_leaf1 = insert_into_leaf(table_id, leaf_offset, key, pointer);
 		decrease_pin(table_id);
 		free(pointer);
@@ -638,70 +628,69 @@ int64_t insert(int table_id, int64_t key, char *value) {
 
 	int insert_into_leaf_after_splitting1 = insert_into_leaf_after_splitting(table_id, leaf_offset, key, pointer);
 	decrease_pin(table_id);
-	// edit
 	free(pointer);
-	//free(page);
 	return insert_into_leaf_after_splitting1;
 }
 
 char *find(int table_id, int64_t key) {
 	int i = 0;
 	int64_t offset = find_leaf(table_id, key);
-	
+	char *value;
 	if (offset == 0) {
 		return NULL;
 	}
 
-	page *page = read_page_buf(table_id, offset);
-	for (i = 0; i < page->num_key; i++) {
-		if (page->key[i] == key) {
+	page page = read_page_buf(table_id, offset);
+	for (i = 0; i < page.num_key; i++) {
+		if (page.key[i] == key) {
 			break;
 		}
 	}
 
-	if (i == page->num_key) {
+	if (i == page.num_key) {
 		return NULL;
 	}
 
 	decrease_pin(table_id);
-	return page->value[i];
+	value = page.value[i];
+	return value;
 }
 
 int64_t find_leaf(int table_id, int64_t key) {
 	int i = 0, chk, first, last, mid;
-	page *page = read_page_buf(table_id, 0);
-	int64_t offset = page->root;
+	page page = read_page_buf(table_id, 0);
+	int64_t offset = page.root;
 	if (offset == 0) {
 		return offset;
 	}
 
 	page = read_page_buf(table_id, offset);
 
-	while (!page->is_leaf) {
+	while (!page.is_leaf) {
 		i = 0;
 		chk = 0;
 		first = 0;
-		last = page->num_key - 1;
+		last = page.num_key - 1;
 		mid = 0;
 
 		while (first <= last) {
 			if (chk == 0) {
-				if (key < page->key[0]) {
-					offset = page->offset[0];
+				if (key < page.key[0]) {
+					offset = page.offset[0];
 					break;
-				} else if (key >= page->key[page->num_key - 1]) {
-					offset = page->offset[page->num_key];
+				} else if (key >= page.key[page.num_key - 1]) {
+					offset = page.offset[page.num_key];
 					break;
 				}
 			}
 			chk++;
 
 			mid = (first + last) / 2;
-			if (page->key[mid] <= key && page->key[mid + 1] > key) {
-				offset = page->offset[mid + 1];
+			if (page.key[mid] <= key && page.key[mid + 1] > key) {
+				offset = page.offset[mid + 1];
 				break;
 			} else  {
-				if (page->key[mid] > key)
+				if (page.key[mid] > key)
 					last = mid - 1;
 				else
 					first = mid + 1;
@@ -715,10 +704,10 @@ int64_t find_leaf(int table_id, int64_t key) {
 }
 
 int get_neighbor_index(int table_id, int64_t offset) {
-	page *apage = read_page_buf(table_id, offset);
-	page *parent = read_page_buf(table_id, apage->parent);
-	for (int i = 0; i <= parent->num_key; i++) {
-		if (parent->offset[i] == offset) {		
+	page apage = read_page_buf(table_id, offset);
+	page parent = read_page_buf(table_id, apage.parent);
+	for (int i = 0; i <= parent.num_key; i++) {
+		if (parent.offset[i] == offset) {		
 			return i - 1;
 		}
 	}
@@ -740,160 +729,156 @@ int64_t coalesce_pages(int table_id, int64_t root, int64_t p, int64_t neighbor, 
 		neighbor = tmp;
 	}
 
-	page *nei_page = read_page_buf(table_id, neighbor);
-	neighbor_insertion_index = nei_page->num_key;
-	page *p_page = read_page_buf(table_id, p);
+	page nei_page = read_page_buf(table_id, neighbor);
+	neighbor_insertion_index = nei_page.num_key;
+	page p_page = read_page_buf(table_id, p);
 
-	if (!p_page->is_leaf) {
+	if (!p_page.is_leaf) {
 
-		nei_page->key[neighbor_insertion_index] = key_prime;
-		nei_page->num_key++;
+		nei_page.key[neighbor_insertion_index] = key_prime;
+		nei_page.num_key++;
 
-		p_end = p_page->num_key;
+		p_end = p_page.num_key;
 		for (i = neighbor_insertion_index + 1, j = 0; j < p_end; i++, j++) {
-			nei_page->key[i] = p_page->key[j];
-			nei_page->offset[i] = p_page->offset[j];
-			nei_page->num_key++;
-			p_page->num_key--;
+			nei_page.key[i] = p_page.key[j];
+			nei_page.offset[i] = p_page.offset[j];
+			nei_page.num_key++;
+			p_page.num_key--;
 		}
 
-		nei_page->offset[i] = p_page->offset[j];
+		nei_page.offset[i] = p_page.offset[j];
 
-		for (i = 0; i < nei_page->num_key + 1; i++) {
-			page *child_page = read_page_buf(table_id, nei_page->offset[i]);
-			child_page->parent = neighbor;
-			write_page_buf(table_id, child_page, nei_page->offset[i]);
+		for (i = 0; i < nei_page.num_key + 1; i++) {
+			page child_page = read_page_buf(table_id, nei_page.offset[i]);
+			child_page.parent = neighbor;
+			write_page_buf(table_id, child_page, nei_page.offset[i]);
 		}
 	} else {
-
-		for (i = neighbor_insertion_index, j = 0; j < p_page->num_key; i++, j++) {
-			nei_page->key[i] = p_page->key[j];
-			strcpy(nei_page->value[i], p_page->value[j]);
-			nei_page->num_key++;
+		for (i = neighbor_insertion_index, j = 0; j < p_page.num_key; i++, j++) {
+			nei_page.key[i] = p_page.key[j];
+			strcpy(nei_page.value[i], p_page.value[j]);
+			nei_page.num_key++;
 		}
-		nei_page->right_page = p_page->right_page;
+		nei_page.right_page = p_page.right_page;
 	}
 
 	write_page_buf(table_id, nei_page, neighbor);
 
-	root = delete_entry(table_id, root, p_page->parent, key_prime, p);
+	root = delete_entry(table_id, root, p_page.parent, key_prime, p);
 	fseek(of, find_last_free_page(), SEEK_SET);
 	fwrite(&p, 8, 1, of);
-	p_page->parent = 0;
+	p_page.parent = 0;
 	write_page_buf(table_id, p_page, p);
 	return root;
 }
 
 int64_t redistribute_pages(int table_id, int64_t root, int64_t p, int64_t neighbor, int neighbor_index, int key_prime_index, int64_t key_prime) {
 	int i;
-	int64_t tmp, temp_offset, temp_key, temp_parent;
 	char value[120];
 
-	page *p_page = read_page_buf(table_id, p);
-	page *nei_page = read_page_buf(table_id, neighbor);
+	page p_page = read_page_buf(table_id, p);
+	page nei_page = read_page_buf(table_id, neighbor);
 	if (neighbor_index != -1) {
-		if (!p_page->is_leaf) {
-			p_page->offset[p_page->num_key + 1] = p_page->offset[p_page->num_key];
-		}
-
-		if (!p_page->is_leaf) {
-			for (i = p_page->num_key; i > 0; i--) {
-				p_page->offset[i] = p_page->offset[i - 1];
-				p_page->key[i] = p_page->key[i - 1];
+		if (!p_page.is_leaf) {
+			p_page.offset[p_page.num_key + 1] = p_page.offset[p_page.num_key];
+			for (i = p_page.num_key; i > 0; i--) {
+				p_page.offset[i] = p_page.offset[i - 1];
+				p_page.key[i] = p_page.key[i - 1];
 			}
-	 	} else {
-	 		for (i = p_page->num_key; i > 0; i--) {
-				p_page->key[i] = p_page->key[i - 1];
-				strcpy(p_page->value[i], p_page->value[i - 1]);
-			}
-	 	}
 
-		if (!p_page->is_leaf) {
-			p_page->offset[0] = nei_page->offset[nei_page->num_key];
-			page *tmp_p = read_page_buf(table_id, p_page->offset[0]);
-			tmp_p->parent = p;
-			write_page_buf(table_id, tmp_p, tmp);
-			
-			nei_page->offset[nei_page->num_key] = -10;
-			p_page->key[0] = key_prime;
+			p_page.offset[0] = nei_page.offset[nei_page.num_key];
+			p_page.key[0] = key_prime;
+			write_page_buf(table_id, p_page, p);
 
-			page *parent_page = read_page_buf(table_id, p_page->parent);
-			parent_page->key[key_prime_index] = nei_page->key[nei_page->num_key - 1];
-			write_page_buf(table_id, parent_page, p_page->parent);
+			page tmp_p = read_page_buf(table_id, p_page.offset[0]);
+			tmp_p.parent = p;
+			write_page_buf(table_id, tmp_p, p_page.offset[0]);
+
+			page parent_page = read_page_buf(table_id, p_page.parent);
+			parent_page.key[key_prime_index] = nei_page.key[nei_page.num_key - 1];
+			write_page_buf(table_id, parent_page, p_page.parent);
 		} else {
-			p_page->offset[0] = nei_page->offset[nei_page->num_key - 1];
-			nei_page->offset[nei_page->num_key - 1] = -10;
-			p_page->key[0] = nei_page->key[nei_page->num_key - 1];
-			page *parent_page = read_page_buf(table_id, p_page->parent);
-			parent_page->key[key_prime_index] = p_page->key[0];
+			for (i = p_page.num_key; i > 0; i--) {
+				p_page.key[i] = p_page.key[i - 1];
+				strcpy(p_page.value[i], p_page.value[i - 1]);
+			}
+
+			p_page.key[0] = nei_page.key[nei_page.num_key - 1];
+			strcpy(p_page.value[0], nei_page.value[nei_page.num_key - 1]);
+			write_page_buf(table_id, p_page, p);
+	
+			page parent_page = read_page_buf(table_id, p_page.parent);
+			parent_page.key[key_prime_index] = p_page.key[0];
+			write_page_buf(table_id, parent_page, p_page.parent);
 		}
 	} else {
-		if (p_page->is_leaf) {
-			p_page->key[p_page->num_key] = nei_page->key[0];
-			p_page->offset[p_page->num_key] = nei_page->offset[0];
-			page *parent_page = read_page_buf(table_id, p_page->parent);
-			parent_page->key[key_prime_index] = nei_page->key[1];
-			write_page_buf(table_id, parent_page, p_page->parent);
+		if (p_page.is_leaf) {
+			p_page.key[p_page.num_key] = nei_page.key[0];
+			strcpy(p_page.value[p_page.num_key], nei_page.value[0]);
+			page parent_page = read_page_buf(table_id, p_page.parent);
+			parent_page.key[key_prime_index] = nei_page.key[1];
+			write_page_buf(table_id, parent_page, p_page.parent);
 		} else {
-			p_page->key[p_page->num_key] = key_prime;
-			p_page->offset[p_page->num_key + 1] = nei_page->offset[0];
-			page *tmp = read_page_buf(table_id, p_page->offset[p_page->num_key + 1]);
-			tmp->parent = p;
-			write_page_buf(table_id, tmp, p_page->offset[p_page->num_key + 1]);
-			page *parent_page = read_page_buf(table_id, p_page->parent);
-			parent_page->key[key_prime_index] = nei_page->key[0];
-			write_page_buf(table_id, parent_page, p_page->parent);
+			p_page.key[p_page.num_key] = key_prime;
+			p_page.offset[p_page.num_key + 1] = nei_page.offset[0];
+			page tmp = read_page_buf(table_id, p_page.offset[p_page.num_key + 1]);
+			tmp.parent = p;
+			write_page_buf(table_id, tmp, p_page.offset[p_page.num_key + 1]);
+			page parent_page = read_page_buf(table_id, p_page.parent);
+			parent_page.key[key_prime_index] = nei_page.key[0];
+			write_page_buf(table_id, parent_page, p_page.parent);
 		}
-
-		if (nei_page->is_leaf) {
-			for (i = 0; i < nei_page->num_key - 1; i++) {
-				nei_page->key[i] = nei_page->key[i + 1];
-				strcpy(nei_page->value[i], nei_page->value[i + 1]);
+		write_page_buf(table_id, p_page, p);
+	
+		if (nei_page.is_leaf) {
+			for (i = 0; i < nei_page.num_key - 1; i++) {
+				nei_page.key[i] = nei_page.key[i + 1];
+				strcpy(nei_page.value[i], nei_page.value[i + 1]);
 			}
 		} else {
-			for (i = 0; i < nei_page->num_key - 1; i++) {
-				nei_page->offset[i] = nei_page->offset[i + 1];
-				nei_page->key[i] = nei_page->key[i + 1];
+			for (i = 0; i < nei_page.num_key - 1; i++) {
+				nei_page.offset[i] = nei_page.offset[i + 1];
+				nei_page.key[i] = nei_page.key[i + 1];
 			}
 		}
 
-		if (!p_page->is_leaf)
-			nei_page->offset[i] = nei_page->offset[i + 1];
+		if (!p_page.is_leaf)
+			nei_page.offset[i] = nei_page.offset[i + 1];
+		write_page_buf(table_id, nei_page, neighbor);
 	}
 
-	p_page->num_key++;
-	nei_page->num_key--;
+	p_page.num_key++;
+	nei_page.num_key--;
 	write_page_buf(table_id, p_page, p);
 	write_page_buf(table_id, nei_page, neighbor);
 	return root;
 }
 
 int64_t adjust_root(int table_id, int64_t root_offset) {
-	int64_t new_root_offset, FP;
-	page *root = read_page_buf(table_id, root_offset);
-	if (root->num_key > 0) {
+	int64_t new_root_offset = 0, FP;
+	page root = read_page_buf(table_id, root_offset);
+	if (root.num_key > 0) {
 		return root_offset;
 	}
-	page *new_root_page = NULL;;
-	if (!root->is_leaf) {
-		new_root_offset = root->offset[0];
-		new_root_page = read_page_buf(table_id, new_root_offset);
-		new_root_page->parent = 0;
-		write_page_buf(table_id, new_root_page, new_root_offset);
-		page *head = read_page_buf(table_id, 0);
-		head->root = new_root_offset;
+	page new_root_page;
+	if (!root.is_leaf) {
+		new_root_page = read_page_buf(table_id, root.offset[0]);
+		new_root_page.parent = 0;
+		write_page_buf(table_id, new_root_page, root.offset[0]);
+		page head = read_page_buf(table_id, 0);
+		head.root = root.offset[0];
 		write_page_buf(table_id, head, 0);
 	} else {
 		new_root_offset = 0;
-		page *head = read_page_buf(table_id, 0);
-		head->root = 0;
+		page head = read_page_buf(table_id, 0);
+		head.root = 0;
 		write_page_buf(table_id, head, 0);
 	}
 
 	fseek(of, find_last_free_page(), SEEK_SET);
 	fwrite(&root_offset, 8, 1, of);
-	root->parent = 0;
-	
+	root.parent = 0;
+	write_page_buf(table_id, root, root_offset);
 	return new_root_offset;
 }
 
@@ -903,44 +888,45 @@ int64_t remove_entry_from_node(int table_id, int64_t key_offset, int64_t key, in
 	char value[120];
 	int64_t key_temp;
 
-	page *key_page = read_page_buf(table_id, key_offset);
-	last = key_page->num_key - 1;
+	page key_page = read_page_buf(table_id, key_offset);
+	last = key_page.num_key - 1;
+
 	while (first <= last) {
 		mid = (first + last) / 2;
 		
-		if (key_page->key[mid] == key) {
+		if (key_page.key[mid] == key) {
 			i = mid;
 			break;
 		} else {
-			if (page_key > key)
+			if (key_page.key[mid] > key)
 				last = mid - 1;
 			else
 				first = mid + 1;
 		}
 	}
-
+	
   	k = i;
-	if (key_page->is_leaf) {
-		for (++i; i < key_page->num_key; i++) {
-			key_page->key[i] = key_page->key[i + 1];
-			strcpy(key_page->value[i], key_page->value[i + 1]);
+	if (key_page.is_leaf) {
+		for (++i; i < key_page.num_key; i++) {
+			key_page.key[i - 1] = key_page.key[i];
+			strcpy(key_page.value[i - 1], key_page.value[i]);
 		}
 	} else {
-		for (++k; k < key_page->num_key; k++) {
-			key_page->key[k - 1] = key_page->key[k];
+		for (++k; k < key_page.num_key; k++) {
+			key_page.key[k - 1] = key_page.key[k];
 		}
 
 		i = 0;
-		while (key_page->offset[i] != key_record) {
+		while (key_page.offset[i] != key_record) {
 			i++;
 		}	
 	
-		for(++i; i < key_page->num_key + 1; i++) {
-			key_page->offset[i - 1] = key_page->offset[i];
+		for(++i; i < key_page.num_key + 1; i++) {
+			key_page.offset[i - 1] = key_page.offset[i];
 		}
 	}
 
-	key_page->num_key--;
+	key_page.num_key--;
 	write_page_buf(table_id, key_page, key_offset);
 	return key_offset;
 }
@@ -949,26 +935,26 @@ int64_t delete_entry(int table_id, int64_t root_offset, int64_t key_offset, int6
 	int64_t min_keys, neighbor_offset, key_prime, chk, parent_offset, temp_offset1, temp_offset2;
 	int neighbor_index, key_prime_index, capacity;
 	key_offset = remove_entry_from_node(table_id, key_offset, key, key_record);
-	
+
 	if (key_offset == root_offset)
 		return adjust_root(table_id, root_offset);
 
-	page *key_page = read_page_buf(table_id, key_offset);
-	min_keys = key_page->is_leaf ? cut(num_LP) : cut(num_IP + 1) - 1;
-	if (key_page->num_key >= min_keys) {
+	page key_page = read_page_buf(table_id, key_offset);
+	min_keys = key_page.is_leaf ? cut(num_LP) : cut(num_IP + 1) - 1;
+	if (key_page.num_key >= min_keys) {
 		return root_offset;
 	}
-
+	
 	neighbor_index = get_neighbor_index(table_id, key_offset);
 	key_prime_index = neighbor_index == -1 ? 0 : neighbor_index;
-	parent_offset = key_page->parent;
-	page *parent = read_page_buf(table_id, parent_offset);
-	key_prime = parent->key[key_prime_index];
-	neighbor_offset = neighbor_index == -1 ? parent->offset[1] : parent->offset[neighbor_index];
-	capacity = key_page->is_leaf ? num_LP + 1 : num_IP;
-	page *nei_page = read_page_buf(table_id, neighbor_offset);
+	parent_offset = key_page.parent;
+	page parent = read_page_buf(table_id, parent_offset);
+	key_prime = parent.key[key_prime_index];
+	neighbor_offset = neighbor_index == -1 ? parent.offset[1] : parent.offset[neighbor_index];
+	capacity = key_page.is_leaf ? num_LP + 1 : num_IP;
+	page nei_page = read_page_buf(table_id, neighbor_offset);
 
-	if (nei_page->num_key + key_page->num_key < capacity) {
+	if (nei_page.num_key + key_page.num_key < capacity) {
 		return coalesce_pages(table_id, root_offset, key_offset, neighbor_offset, neighbor_index, key_prime);
 	} else
 		return redistribute_pages(table_id, root_offset, key_offset, neighbor_offset, neighbor_index, key_prime_index, key_prime);
@@ -978,18 +964,19 @@ int64_t delete(int table_id, int64_t key) {
 	int64_t key_leaf = find_leaf(table_id, key), root_offset, key_offset, tmp;
 	char *key_record = find(table_id, key);
 	int i = 0;
-	page *key_page = read_page_buf(table_id, key_leaf);
+	page key_page = read_page_buf(table_id, key_leaf);
 
-	while(key != key_page->key[i])
-		i++;
+	for (i = 0; i < key_page.num_key; i++) {
+		if (key == key_page.key[i])
+			break;
+	}
 
 	key_offset = key_leaf + 128 * (i + 1);
 	
-	page *head =read_page_buf(table_id, 0);
-	root_offset = head->root;
+	page head =read_page_buf(table_id, 0);
+	root_offset = head.root;
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(table_id, root_offset, key_leaf, key, key_offset);
-		free(key_record);
 		return 1;
 	}
 

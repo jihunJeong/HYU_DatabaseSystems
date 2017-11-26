@@ -37,7 +37,7 @@ typedef struct page {
 } page;
 
 typedef struct buffer {
-	page *page;
+	page page;
 	int table_id;
 	int64_t page_offset;
 	int is_dirty;
@@ -52,11 +52,11 @@ extern int64_t cnt_p;
 extern page *trash_page;
 
 int cut(int length);
-page *init_page();
+page init_page();
 void copy_page();
 void decrease_pin(int table_id);
 int64_t find_last_free_page();
-page *clock_request_page(int table_id, page *n_page, int64_t offset);
+page clock_request_page(int table_id, page n_page, int64_t offset);
 
 void usage_2(void);
 int init_db(int num_buf);
@@ -70,9 +70,9 @@ record *make_record(int64_t key, char *value);
 int64_t make_page(int table_id);
 int64_t make_leaf(int table_id);
 void write_page_db(int table_id, buffer *buf);
-void write_page_buf(int table_id, page *page, int64_t offset);
-page *read_page_db(int table_id, int64_t offset);
-page *read_page_buf(int table_id, int64_t offset);
+void write_page_buf(int table_id, page page, int64_t offset);
+page read_page_db(int table_id, int64_t offset);
+page read_page_buf(int table_id, int64_t offset);
 
 int64_t get_left_index(int table_id, int64_t parent_offset, int64_t left_offset);
 int64_t insert_into_parent(int table_id, int64_t parent_offset, int64_t leaf_offset, int64_t key, int64_t

@@ -11,12 +11,12 @@ int main () {
 	char instruction;
 	char license_part;
 
-	init_db(25);
+	init_db(16);
 	int table_id = open_table("test.db");
 	while (scanf("%c", &instruction) != EOF) {
 		switch (instruction) {
 		case 'i':
-			//for (int i = 0; i < 33000; i++) {
+			//for (int i = 0; i < 1000000; i++) {
 
 				//input_key = i;
 				//strcpy(value, "a");
@@ -24,11 +24,11 @@ int main () {
 				scanf("%ld %s", &input_key, value);
 				insert(table_id, input_key, value);
 				//printf("%d\n", input_key);
-			//	}
+			//}
 			break;
 
 		case 'f':
-			//for (input_key = 0; input_key < 33000; input_key++) {
+			//for (input_key = 0; input_key < 1000000; input_key++) {
 				scanf("%ld", &input_key);
 				value = find(table_id, input_key);
 				if (value != NULL) {
@@ -36,30 +36,30 @@ int main () {
 				} else { 
 					printf("Not Exists\n");
 				}
-		   //}
+			//}
 			fflush(stdout);
 			break;	
 		
 		case 'd':
-			//for (int i = 0; i < 200000; i++){
+			//for (int i = 262144; i < 524288; i++){
 				//input_key = i;
-				//scanf("%ld", &input_key);
-			//	delete(table_id, input_key);
-				//if (delete(input_key)) {
-					//printf("Succes %d\n", input_key);
+				scanf("%ld", &input_key);
+				int a =delete(table_id, input_key);
+				//if (a) {
+				//	printf("Succes %d\n", input_key);
 				//} else {
 				//	printf("not delete %d\n", input_key);
-				//	return 0;
+					//return 0;
 				//}
 			//}
 			break;
 		case 'q':
+			close_table(table_id);
 			while (getchar() != (int)'\n');
 			return EXIT_SUCCESS;
 		} 
 	}
 
-	close_table(table_id);
 	shutdown_db();
 	return 0;
 }

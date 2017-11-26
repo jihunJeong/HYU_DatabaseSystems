@@ -206,7 +206,7 @@ test_case_seq("Large(2^20)", LARGE_CASE)
 print("--------------   Random Insert Test   --------------")
 test_case_rnd("Small(2^10)", SMALL_CASE)
 test_case_rnd("Medium(2^15)", MEDIUM_CASE)
-#test_case_rnd("Large(2^20)", LARGE_CASE)
+test_case_rnd("Large(2^20)", LARGE_CASE)
 
 sleep(0.1)
 
