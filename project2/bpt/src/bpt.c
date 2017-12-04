@@ -929,11 +929,7 @@ int64_t delete(int64_t key) {
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(root_offset, key_leaf, key, key_offset);
 		free(key_record);
-		//fflush(of);
-		//fsync(fileno(of));
 		return 1;
 	}
-
-	//fsync(fileno(of));
 	return 0;
 }
