@@ -1065,7 +1065,6 @@ int join_table(int table_id_1, int table_id_2, char *pathname) {
 			} else {
 				insert_page.key[insert_page.num_key] = id1_page.key[i];
 				strcpy(insert_page.value[insert_page.num_key], id1_page.value[i]);
-				printf("id1 %d\n", id1_page.key[i]);
 				insert_page.num_key++;
 
 				insert_page.key[insert_page.num_key] = id2_page.key[j];
@@ -1097,54 +1096,6 @@ int join_table(int table_id_1, int table_id_2, char *pathname) {
 		}
 	}
 	
-	/*
-	while (table_id_1_offset != 0 && table_id_2_offset != 0) {
-		i = 0;
-		j = 0;
-
-		//Compare key with two page
-		while (i != id1_page.num_key && j != id2_page.num_key) {
-			while (id1_page.key[i] < id2_page.key[j] && i != id1_page.num_key)
-				i++;
-			while (id1_page.key[i] > id2_page.key[j] && j != id2_page.num_key)
-				j++;
-
-			//Save start of "block"
-			while (i != id1_page.num_key && id1_page.key[i] == id2_page.key[j]) {
-				while (j != id2_page.num_key && id1_page.key[i] == id2_page.key[j]) {
-					insert_page.key[insert_page.num_key] = id1_page.key[i];
-					strcpy(insert_page.value[insert_page.num_key], id1_page.value[i]);
-					printf("id1 %d\n", id1_page.key[i]);
-					insert_page.num_key++;
-
-					insert_page.key[insert_page.num_key] = id2_page.key[j];
-					strcpy(insert_page.value[insert_page.num_key], id2_page.value[j]);
-					insert_page.num_key++;
-					
-					if (insert_page.num_key == 30) {
-						write_page_buf(new_id, insert_page, 0);
-						write_txt_page(new_id);
-						insert_page.num_key = 0;
-					}
-					j++;
-				}
-				i++;
-			}
-		}
-		decrease_pin(table_id_1);
-		decrease_pin(table_id_2);
-
-		if (i == id1_page.num_key) {
-			table_id_1_offset = id1_page.right_page;
-			id1_page = read_page_buf(table_id_1, table_id_1_offset);
-		}
-
-		if (j == id2_page.num_key) {
-			table_id_2_offset = id2_page.right_page;
-			id2_page = read_page_buf(table_id_2, table_id_2_offset);
-		}
-	}
-	*/
 	write_page_buf(new_id, insert_page, 0);
 	write_txt_page(new_id);
 	fclose(new_of);
