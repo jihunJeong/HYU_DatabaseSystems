@@ -602,7 +602,7 @@ int64_t insert(int table_id, int64_t key, char *value) {
 
 	key_find = find(table_id, key);
 	if (key_find != NULL) {
-		return 0;
+		return 1;
 	}
 
 	free(key_find);
@@ -611,25 +611,25 @@ int64_t insert(int table_id, int64_t key, char *value) {
 	page page = read_page_buf(table_id, 0);
 
 	if (page.root == 0) {
-		int64_t start_new_db1 = start_new_db(table_id, key, pointer);
+		start_new_db(table_id, key, pointer);
 		decrease_pin(table_id);
 		free(pointer);
-		return start_new_db1;
+		return 0;
 	}
 
 	leaf_offset = find_leaf(table_id, key);
 	page = read_page_buf(table_id, leaf_offset);
 	if (page.num_key < num_LP) {
-		int insert_into_leaf1 = insert_into_leaf(table_id, leaf_offset, key, pointer);
+		insert_into_leaf(table_id, leaf_offset, key, pointer);
 		decrease_pin(table_id);
 		free(pointer);
-		return insert_into_leaf1;
+		return 0;
 	}
 
-	int insert_into_leaf_after_splitting1 = insert_into_leaf_after_splitting(table_id, leaf_offset, key, pointer);
+	insert_into_leaf_after_splitting(table_id, leaf_offset, key, pointer);
 	decrease_pin(table_id);
 	free(pointer);
-	return insert_into_leaf_after_splitting1;
+	return 0;
 }
 
 char *find(int table_id, int64_t key) {

@@ -11,7 +11,7 @@ int main () {
 	char instruction;
 	char license_part;
 
-	init_db(16);
+	init_db(300);
 	
 	while (scanf("%c", &instruction) != EOF) {
 		switch (instruction) {
@@ -24,6 +24,13 @@ int main () {
 			scanf("%d %ld", &id1, &input_key);
 			scanf("%s", value);
 			insert(id1, input_key, value);
+		
+			/*
+			for (int i = 0; i < 10000; i++) {
+				insert(1, i, "a");
+				printf("i %d\n", i);
+			}
+			*/
 			break;
 		case 'f':
 			scanf("%d %ld", &id1, &input_key);
