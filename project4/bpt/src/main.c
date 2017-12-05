@@ -16,8 +16,7 @@ int main () {
 	while (scanf("%c", &instruction) != EOF) {
 		switch (instruction) {
 		case 'o':
-			fgets(input_file, sizeof(input_file), stdin);
-			input_file[strlen(input_file) - 1] = '\0';
+			scanf("%s", input_file);
 			int table_id = open_table(input_file);
 			printf("%d\n", table_id);
 			break;
@@ -29,8 +28,9 @@ int main () {
 		case 'f':
 			scanf("%d %ld", &id1, &input_key);
 			f = find(id1, input_key);
-			if (value != NULL) {
-				printf("Key: %ld, Value: %s\n", input_key, value);
+			
+			if (f != NULL) {
+				printf("Key: %ld, Value: %s\n", input_key, f);
 			} else { 
 				printf("Not Exists\n");
 			}
@@ -49,10 +49,11 @@ int main () {
 		case 'q':
 			while (getchar() != (int)'\n');
 			return EXIT_SUCCESS;
+		case 'c':
+			scanf("%d", &id1);
+			close_table(id1);
 		} 
 	}
-	close_table(1);
-	close_table(2);
 	shutdown_db();
 	return 0;
 }

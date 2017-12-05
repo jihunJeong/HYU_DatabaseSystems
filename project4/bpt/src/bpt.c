@@ -70,8 +70,9 @@ page clock_request_page(int table_id, page new_page, int64_t offset) {
 	while (retval_page == NULL) {
 		buffer *current = buffer_pool[clk_hand];
 		if (current->refbit == 0 && current->pin_count == 0) {
-			if (current->is_dirty == 1)
+			if (current->is_dirty == 1) {
 				write_page_db(current->table_id, current);
+			}
 			retval_page = &new_page;
 			copy_page(&(current->page), &new_page);
 			current->is_dirty = 0;
@@ -85,7 +86,6 @@ page clock_request_page(int table_id, page new_page, int64_t offset) {
 
 		clk_hand = (clk_hand + 1) % MAX_FRAME;
 	}
-
 	return new_page;
 }
 
@@ -123,7 +123,6 @@ int init_db(int num_buf) {
 	if (buffer_pool == NULL) {
 		return 1;
 	}
-
 	return 0;
 }
 
@@ -132,8 +131,9 @@ void initialize_db(int table_id) {
 	int64_t cng = 0, rp = 0;
 	int cnt_p = 1;
 	FILE *of = array_f[table_id];
-
+	
 	page apage = read_page_buf(table_id, 0);
+	
 	for (int i = 0; i < 10; i++) {
 		fseek(of, FP * i, SEEK_SET);
 		cng += 4096;
@@ -141,6 +141,7 @@ void initialize_db(int table_id) {
 		cnt_p += 1;
 		
 	}
+
 	apage.root = 0;
 	apage.num_page = cnt_p;
 	write_page_buf(table_id, apage, 0);
@@ -151,25 +152,29 @@ void initialize_db(int table_id) {
 
 int open_table(char *pathname) {
 	int i = 0;
-	FILE *of = fopen(pathname, "r+");
-	if (of == NULL) {
-		of = fopen(pathname, "w+");
-		if(of == NULL) {
-			printf("FILE OPEN ERROR\n");
-			return -1;
-		}
-	}
-
 	for (i = 1; i < 11; i ++) {
 		if (array_f[i] == NULL) {
-			array_f[i] = of;
 			break;
 		}
 	}
 
-	if (strstr(pathname, ".txt") == NULL) {
-		initialize_db(i);
+	FILE *of = fopen(pathname, "r+");
+	if (of == NULL) {
+		of = fopen(pathname, "w+");
+		
+		if(of == NULL) {
+			printf("FILE OPEN ERROR\n");
+			return -1;
+		} 
+
+		array_f[i] = of;
+
+		if (strstr(pathname, ".txt") == NULL) {
+			initialize_db(i);
+		}
 	}
+
+	array_f[i] = of;
 	return i;
 }
 
@@ -178,11 +183,15 @@ int close_table(int table_id) {
 	for(i; i < MAX_FRAME; i++) {
 		if (buffer_pool[i]->table_id == table_id) {
 			write_page_db(table_id, buffer_pool[i]);
+			buffer_pool[i]->refbit = 0;
+			buffer_pool[i]->pin_count = 0;
+			buffer_pool[i]->is_dirty = 0;
+			buffer_pool[i]->page_offset = -1;
 		}
 	}
 	FILE *of = array_f[table_id];
 	fclose(of);
-	array_f[i] = NULL;
+	array_f[table_id] = NULL;
 }
 
 int shutdown_db() {
@@ -313,7 +322,6 @@ page read_page_db(int table_id, int64_t offset) {
 		return page;
 	}
 	fseek(of, offset, SEEK_SET);
-
 	if (offset != 0) {
 		fread(&(page.parent), 8, 1, of);
 		fread(&(page.is_leaf), 4, 1, of);
@@ -662,7 +670,6 @@ int64_t find_leaf(int table_id, int64_t key) {
 	int i = 0, chk, first, last, mid;
 	page page = read_page_buf(table_id, 0);
 	int64_t offset = page.root;
-
 	if (offset == 0) {
 		return offset;
 	}
@@ -701,6 +708,7 @@ int64_t find_leaf(int table_id, int64_t key) {
 		}
 		page = read_page_buf(table_id, offset);
 	}
+
 	return offset;
 }
 
@@ -1009,25 +1017,24 @@ int64_t read_first_leaf_page(int table_id) {
 void write_txt_page(int table_id) {
 	FILE *of = array_f[table_id];
 	buffer *buf;
-
-	for (int i = 0; i < MAX_FRAME; i++) {
+	int i;
+	for (i = 0; i < MAX_FRAME; i++) {
 		if (buffer_pool[i]->table_id == table_id) {
-			buf = buffer_pool[i];
 			break;
 		}
 	}
 
-	for (int i = 0; i < buf->page.num_key; i++) {
-		fprintf(of, "%ld,%s", buf->page.key[i], buf->page.value[i]);
+	for (int j = 0; j < buffer_pool[i]->page.num_key; j++) {
+		fprintf(of, "%ld,%s", buffer_pool[i]->page.key[j], buffer_pool[i]->page.value[j]);
 
-		if ((i % 2) == 1) {
+		if ((j % 2) == 1) {
 			fprintf(of, "\n");
 		} else {
 			fprintf(of, ",");
 		}
 	}
 
-	buf->pin_count = 1;
+	buffer_pool[i]->pin_count = 1;
 }
 
 //Implement./ma join_table
@@ -1046,6 +1053,51 @@ int join_table(int table_id_1, int table_id_2, char *pathname) {
 	page id2_page = read_page_buf(table_id_2, table_id_2_offset);
 	page insert_page = read_page_buf(new_id, 0);
 
+	while(table_id_1_offset != 0 && table_id_2_offset != 0) {
+		i = 0;
+		j = 0;
+			
+		while (i != id1_page.num_key && j != id2_page.num_key) {
+			if (id1_page.key[i] < id2_page.key[j]) {
+				i++;
+			} else if (id1_page.key[i] > id2_page.key[j]) {
+				j++;
+			} else {
+				insert_page.key[insert_page.num_key] = id1_page.key[i];
+				strcpy(insert_page.value[insert_page.num_key], id1_page.value[i]);
+				printf("id1 %d\n", id1_page.key[i]);
+				insert_page.num_key++;
+
+				insert_page.key[insert_page.num_key] = id2_page.key[j];
+				strcpy(insert_page.value[insert_page.num_key], id2_page.value[j]);
+				insert_page.num_key++;
+
+				if (insert_page.num_key == 30) {
+					write_page_buf(new_id, insert_page, 0);
+					write_txt_page(new_id);
+					insert_page.num_key = 0;
+				}
+
+				i++;
+				j++;
+			}
+		}
+
+		decrease_pin(table_id_1);
+		decrease_pin(table_id_2);
+
+		if (i == id1_page.num_key) {
+			table_id_1_offset = id1_page.right_page;
+			id1_page = read_page_buf(table_id_1, table_id_1_offset);
+		}
+
+		if (j == id2_page.num_key) {
+			table_id_2_offset = id2_page.right_page;
+			id2_page = read_page_buf(table_id_2, table_id_2_offset);
+		}
+	}
+	
+	/*
 	while (table_id_1_offset != 0 && table_id_2_offset != 0) {
 		i = 0;
 		j = 0;
@@ -1058,11 +1110,11 @@ int join_table(int table_id_1, int table_id_2, char *pathname) {
 				j++;
 
 			//Save start of "block"
-			mark = j;
 			while (i != id1_page.num_key && id1_page.key[i] == id2_page.key[j]) {
 				while (j != id2_page.num_key && id1_page.key[i] == id2_page.key[j]) {
 					insert_page.key[insert_page.num_key] = id1_page.key[i];
 					strcpy(insert_page.value[insert_page.num_key], id1_page.value[i]);
+					printf("id1 %d\n", id1_page.key[i]);
 					insert_page.num_key++;
 
 					insert_page.key[insert_page.num_key] = id2_page.key[j];
@@ -1076,8 +1128,6 @@ int join_table(int table_id_1, int table_id_2, char *pathname) {
 					}
 					j++;
 				}
-
-				j = mark;
 				i++;
 			}
 		}
@@ -1094,7 +1144,7 @@ int join_table(int table_id_1, int table_id_2, char *pathname) {
 			id2_page = read_page_buf(table_id_2, table_id_2_offset);
 		}
 	}
-
+	*/
 	write_page_buf(new_id, insert_page, 0);
 	write_txt_page(new_id);
 	fclose(new_of);
