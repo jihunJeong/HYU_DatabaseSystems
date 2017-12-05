@@ -929,7 +929,7 @@ int64_t delete(int64_t key) {
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(root_offset, key_leaf, key, key_offset);
 		free(key_record);
-		return 1;
+		return 0;
 	}
-	return 0;
+	return 1;
 }

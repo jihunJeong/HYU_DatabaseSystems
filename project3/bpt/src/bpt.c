@@ -977,8 +977,8 @@ int64_t delete(int table_id, int64_t key) {
 	root_offset = head.root;
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(table_id, root_offset, key_leaf, key, key_offset);
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return 1;
 }
