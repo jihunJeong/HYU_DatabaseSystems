@@ -765,10 +765,13 @@ int64_t coalesce_pages(int table_id, int64_t root, int64_t p, int64_t neighbor, 
 	write_page_buf(table_id, nei_page, neighbor);
 
 	root = delete_entry(table_id, root, p_page.parent, key_prime, p);
+	/*
 	fseek(of, find_last_free_page(), SEEK_SET);
 	fwrite(&p, 8, 1, of);
 	p_page.parent = 0;
 	write_page_buf(table_id, p_page, p);
+	*/
+
 	return root;
 }
 
@@ -875,10 +878,12 @@ int64_t adjust_root(int table_id, int64_t root_offset) {
 		write_page_buf(table_id, head, 0);
 	}
 
+	/*
 	fseek(of, find_last_free_page(), SEEK_SET);
 	fwrite(&root_offset, 8, 1, of);
 	root.parent = 0;
 	write_page_buf(table_id, root, root_offset);
+	*/
 	return new_root_offset;
 }
 

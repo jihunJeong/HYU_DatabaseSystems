@@ -643,6 +643,7 @@ int64_t insert(int table_id, int64_t key, char *value) {
 }
 
 char *find(int table_id, int64_t key) {
+	printf("2\n");
 	int i = 0;
 	int64_t offset = find_leaf(table_id, key);
 	char *value;
@@ -670,6 +671,7 @@ int64_t find_leaf(int table_id, int64_t key) {
 	int i = 0, chk, first, last, mid;
 	page page = read_page_buf(table_id, 0);
 	int64_t offset = page.root;
+	
 	if (offset == 0) {
 		return offset;
 	}
@@ -775,10 +777,12 @@ int64_t coalesce_pages(int table_id, int64_t root, int64_t p, int64_t neighbor, 
 
 	FILE *of = array_f[table_id];
 	root = delete_entry(table_id, root, p_page.parent, key_prime, p);
+	/*
 	fseek(of, find_last_free_page(table_id), SEEK_SET);
 	fwrite(&p, 8, 1, of);
 	p_page.parent = 0;
 	write_page_buf(table_id, p_page, p);
+	*/
 	return root;
 }
 
@@ -885,11 +889,12 @@ int64_t adjust_root(int table_id, int64_t root_offset) {
 		write_page_buf(table_id, head, 0);
 	}
 
-	FILE *of = array_f[table_id];
+	/*FILE *of = array_f[table_id];
 	fseek(of, find_last_free_page(table_id), SEEK_SET);
 	fwrite(&root_offset, 8, 1, of);
 	root.parent = 0;
 	write_page_buf(table_id, root, root_offset);
+	*/
 	return new_root_offset;
 }
 
@@ -988,10 +993,10 @@ int64_t delete(int table_id, int64_t key) {
 	root_offset = head.root;
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(table_id, root_offset, key_leaf, key, key_offset);
-		return 0;
+		return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 //Find frist leaf page in File with table_id variable
@@ -1046,7 +1051,7 @@ int join_table(int table_id_1, int table_id_2, char *pathname) {
 
 	//Open new file with pathname
 	int new_id = open_table(pathname);
-	int mark, i, j;
+	int i, j;
 	FILE *new_of = array_f[new_id];
 
 	page id1_page = read_page_buf(table_id_1, table_id_1_offset);

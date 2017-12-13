@@ -18,7 +18,6 @@ int main () {
 		case 'i':
 			scanf("%ld %s", &input_key, value);
 			insert(table_id, input_key, value);
-			printf("%d\n", input_key);
 			break;
 		case 'f':
 			scanf("%ld", &input_key);

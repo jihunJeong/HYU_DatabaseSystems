@@ -10,8 +10,7 @@ int main () {
 	int range2, id1, id2;
 	char instruction;
 	char license_part;
-
-	init_db(300);
+	init_db(16);
 	
 	while (scanf("%c", &instruction) != EOF) {
 		switch (instruction) {
