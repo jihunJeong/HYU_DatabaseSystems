@@ -643,7 +643,6 @@ int64_t insert(int table_id, int64_t key, char *value) {
 }
 
 char *find(int table_id, int64_t key) {
-	printf("2\n");
 	int i = 0;
 	int64_t offset = find_leaf(table_id, key);
 	char *value;
@@ -993,10 +992,10 @@ int64_t delete(int table_id, int64_t key) {
 	root_offset = head.root;
 	if (key_record != NULL && key_leaf != 0) {
 		delete_entry(table_id, root_offset, key_leaf, key, key_offset);
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 //Find frist leaf page in File with table_id variable
