@@ -11,7 +11,7 @@ int main () {
 	char instruction;
 	char license_part;
 	init_db(16);
-	
+	int table_id = open_table("test.db");
 	while (scanf("%c", &instruction) != EOF) {
 		switch (instruction) {
 		case 'o':
@@ -19,9 +19,10 @@ int main () {
 			int table_id = open_table(input_file);
 			break;
 		case 'i':
-			scanf("%d %ld", &id1, &input_key);
-			scanf("%s", value);
-			insert(id1, input_key, value);
+			//scanf("%d %ld", &id1, &input_key);
+			scanf("%ld %s", &input_key, value);
+			//scanf("%s", value);
+			insert(1, input_key, value);
 		
 			/*
 			for (int i = 0; i < 10000; i++) {
@@ -31,8 +32,9 @@ int main () {
 			*/
 			break;
 		case 'f':
-			scanf("%d %ld", &id1, &input_key);
-			f = find(id1, input_key);
+			//scanf("%d %ld", &id1, &input_key);
+			scanf("%ld", &input_key);
+			f = find(1, input_key);
 			
 			if (f != NULL) {
 				printf("Key: %ld, Value: %s\n", input_key, f);
@@ -43,8 +45,9 @@ int main () {
 			break;	
 		
 		case 'd':
-			scanf("%d %ld", &id1, &input_key);
-			int a =delete(id1, input_key);
+			//scanf("%d %ld", &id1, &input_key);
+			scanf("%ld", &input_key);
+			int a =delete(1, input_key);
 			break;
 		case 'j':
 			scanf("%d %d", &id1, &id2);
