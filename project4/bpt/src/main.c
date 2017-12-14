@@ -17,7 +17,6 @@ int main () {
 		case 'o':
 			scanf("%s", input_file);
 			int table_id = open_table(input_file);
-			printf("%d\n", table_id);
 			break;
 		case 'i':
 			scanf("%d %ld", &id1, &input_key);
